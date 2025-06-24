@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
-import { Waves, Shield, TrendingUp, Wallet, Eye, EyeOff, AlertCircle, CheckCircle, ArrowLeft } from 'lucide-react';
+import { Waves, Shield, TrendingUp, Wallet, Eye, EyeOff, AlertCircle, CheckCircle, ArrowLeft, Activity } from 'lucide-react';
 import { PARAMIFY_ADDRESS, PARAMIFY_ABI } from './lib/contract';
+import { usgsApi, formatTimestamp, getTimeUntilNextUpdate, type ServiceStatus } from './lib/usgsApi';
 
 interface InsuracleDashboardProps {
   setUserType?: (userType: string | null) => void;
@@ -20,6 +21,9 @@ export default function InsuracleDashboard({ setUserType }: InsuracleDashboardPr
   const [isLoading, setIsLoading] = useState(false);
   const [hasActivePolicy, setHasActivePolicy] = useState(false);
   const [networkError, setNetworkError] = useState(false);
+  const [serviceStatus, setServiceStatus] = useState<ServiceStatus | null>(null);
+  const [isBackendConnected, setIsBackendConnected] = useState(false);
+  const [nextUpdateCountdown, setNextUpdateCountdown] = useState<string>('');
 
   // Connect wallet and fetch initial data
   useEffect(() => {
@@ -85,6 +89,44 @@ export default function InsuracleDashboard({ setUserType }: InsuracleDashboardPr
   useEffect(() => {
     setPremium(0.1 * policyAmount);
   }, [policyAmount]);
+
+  // Fetch USGS service status
+  useEffect(() => {
+    const fetchServiceStatus = async () => {
+      try {
+        const status = await usgsApi.getStatus();
+        setServiceStatus(status);
+        setIsBackendConnected(true);
+        
+        // Update flood level from USGS data
+        if (status.oracleValue !== null) {
+          setFloodLevel(status.oracleValue * 1000); // Convert back to units
+        }
+      } catch (error) {
+        console.error('Failed to fetch USGS service status:', error);
+        setIsBackendConnected(false);
+      }
+    };
+
+    fetchServiceStatus();
+    const interval = setInterval(fetchServiceStatus, 10000); // Check every 10 seconds
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Update countdown timer
+  useEffect(() => {
+    const updateCountdown = () => {
+      if (serviceStatus?.nextUpdate) {
+        setNextUpdateCountdown(getTimeUntilNextUpdate(serviceStatus.nextUpdate));
+      }
+    };
+
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 1000);
+
+    return () => clearInterval(interval);
+  }, [serviceStatus]);
 
   // Buy insurance (send tx)
   const handleBuyInsurance = async () => {
@@ -318,6 +360,59 @@ export default function InsuracleDashboard({ setUserType }: InsuracleDashboardPr
             </div>
           </div>
 
+          {/* USGS Data Integration Status */}
+          <div className="mb-8">
+            <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
+              <Activity className="mr-2 h-5 w-5 text-green-300" />
+              Live Data Source
+            </h3>
+            <div className="bg-black/20 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center space-x-2">
+                  <div className={`w-3 h-3 rounded-full ${isBackendConnected ? 'bg-green-400 animate-pulse' : 'bg-red-400'}`}></div>
+                  <span className={`text-sm font-medium ${isBackendConnected ? 'text-green-300' : 'text-red-300'}`}>
+                    {isBackendConnected ? 'Connected to USGS Service' : 'USGS Service Disconnected'}
+                  </span>
+                </div>
+              </div>
+              
+              {serviceStatus && (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-black/30 rounded-lg p-3">
+                      <p className="text-gray-400 text-xs mb-1">USGS Water Level</p>
+                      <p className="text-white font-bold">{serviceStatus.currentFloodLevel?.toFixed(2) || 'N/A'} ft</p>
+                      <p className="text-gray-400 text-xs mt-1">= {((serviceStatus.currentFloodLevel || 0) * 1000).toFixed(1)} units</p>
+                    </div>
+                    <div className="bg-black/30 rounded-lg p-3">
+                      <p className="text-gray-400 text-xs mb-1">Next Update In</p>
+                      <p className="text-white font-bold">{nextUpdateCountdown}</p>
+                      <p className="text-gray-400 text-xs mt-1">Every 5 minutes</p>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-black/30 rounded-lg p-3">
+                    <p className="text-gray-400 text-xs mb-1">Data Source</p>
+                    <p className="text-white text-sm font-medium">{serviceStatus.site.name}</p>
+                    <p className="text-gray-400 text-xs">Site ID: {serviceStatus.site.siteId}</p>
+                  </div>
+                  
+                  <div className="bg-black/30 rounded-lg p-3">
+                    <p className="text-gray-400 text-xs mb-1">Last Updated</p>
+                    <p className="text-white text-sm">{formatTimestamp(serviceStatus.lastUpdate)}</p>
+                  </div>
+                </div>
+              )}
+              
+              {!isBackendConnected && (
+                <div className="mt-4 bg-yellow-500/20 border border-yellow-400/30 rounded-lg p-3">
+                  <p className="text-yellow-200 text-sm">
+                    ⚠️ Real-time USGS data is currently unavailable. Showing last known values.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
   
           <div className="mb-8">
             <h3 className="text-xl font-semibold text-white mb-4 flex items-center">

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
-import { Waves, Shield, TrendingUp, Wallet, AlertCircle, CheckCircle, ArrowLeft } from 'lucide-react';
+import { Waves, Shield, TrendingUp, Wallet, AlertCircle, CheckCircle, ArrowLeft, RefreshCw, Activity } from 'lucide-react';
 import { PARAMIFY_ADDRESS, PARAMIFY_ABI, MOCK_ORACLE_ADDRESS, MOCK_ORACLE_ABI } from './lib/contract';
+import { usgsApi, formatTimestamp, getTimeUntilNextUpdate, type ServiceStatus } from './lib/usgsApi';
 
 interface ParamifyDashboardProps {
   setUserType?: (userType: string | null) => void;
@@ -25,6 +26,9 @@ export default function InsuracleDashboardAdmin({ setUserType }: ParamifyDashboa
   const [hasActivePolicy, setHasActivePolicy] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [walletChecked, setWalletChecked] = useState(false);
+  const [serviceStatus, setServiceStatus] = useState<ServiceStatus | null>(null);
+  const [isBackendConnected, setIsBackendConnected] = useState(false);
+  const [nextUpdateCountdown, setNextUpdateCountdown] = useState<string>('');
 
   const handleConnectWallet = async () => {
     if (!window.ethereum) {
@@ -138,6 +142,61 @@ export default function InsuracleDashboardAdmin({ setUserType }: ParamifyDashboa
     };
     fetchAdminStatus();
   }, []);
+
+  // Fetch USGS service status
+  useEffect(() => {
+    const fetchServiceStatus = async () => {
+      try {
+        const status = await usgsApi.getStatus();
+        setServiceStatus(status);
+        setIsBackendConnected(true);
+        
+        // Update flood level from USGS data
+        if (status.oracleValue !== null) {
+          setFloodLevel(status.oracleValue * 1000); // Convert back to units
+        }
+      } catch (error) {
+        console.error('Failed to fetch USGS service status:', error);
+        setIsBackendConnected(false);
+      }
+    };
+
+    fetchServiceStatus();
+    const interval = setInterval(fetchServiceStatus, 10000); // Check every 10 seconds
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Update countdown timer
+  useEffect(() => {
+    const updateCountdown = () => {
+      if (serviceStatus?.nextUpdate) {
+        setNextUpdateCountdown(getTimeUntilNextUpdate(serviceStatus.nextUpdate));
+      }
+    };
+
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 1000);
+
+    return () => clearInterval(interval);
+  }, [serviceStatus]);
+
+  const handleManualUSGSUpdate = async () => {
+    try {
+      setTransactionStatus('Triggering USGS data update...');
+      const result = await usgsApi.triggerManualUpdate();
+      if (result.success) {
+        setTransactionStatus('USGS data updated successfully!');
+        // Refresh service status
+        const status = await usgsApi.getStatus();
+        setServiceStatus(status);
+      }
+    } catch (error) {
+      console.error('Failed to trigger manual update:', error);
+      setTransactionStatus('Failed to update USGS data');
+    }
+    setTimeout(() => setTransactionStatus(''), 5000);
+  };
 
   const calculatePremium = (coverage: number) => coverage * 0.1;
 
@@ -498,6 +557,71 @@ export default function InsuracleDashboardAdmin({ setUserType }: ParamifyDashboa
                       )}
                     </button>
                   </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* USGS Data Integration Status */}
+          <div className="mb-8">
+            <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
+              <Activity className="mr-2 h-5 w-5 text-green-300" />
+              USGS Real-Time Data
+            </h3>
+            <div className="bg-black/20 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center space-x-2">
+                  <div className={`w-3 h-3 rounded-full ${isBackendConnected ? 'bg-green-400 animate-pulse' : 'bg-red-400'}`}></div>
+                  <span className={`text-sm font-medium ${isBackendConnected ? 'text-green-300' : 'text-red-300'}`}>
+                    {isBackendConnected ? 'Connected to USGS Service' : 'USGS Service Disconnected'}
+                  </span>
+                </div>
+                <button
+                  onClick={handleManualUSGSUpdate}
+                  disabled={!isBackendConnected}
+                  className="flex items-center space-x-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-500 disabled:cursor-not-allowed text-white px-3 py-1 rounded-lg text-sm transition-all duration-200"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  <span>Manual Update</span>
+                </button>
+              </div>
+              
+              {serviceStatus && (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-black/30 rounded-lg p-3">
+                      <p className="text-gray-400 text-xs mb-1">USGS Water Level</p>
+                      <p className="text-white font-bold">{serviceStatus.currentFloodLevel?.toFixed(2) || 'N/A'} ft</p>
+                      <p className="text-gray-400 text-xs mt-1">= {((serviceStatus.currentFloodLevel || 0) * 1000).toFixed(1)} units</p>
+                    </div>
+                    <div className="bg-black/30 rounded-lg p-3">
+                      <p className="text-gray-400 text-xs mb-1">Next Update In</p>
+                      <p className="text-white font-bold">{nextUpdateCountdown}</p>
+                      <p className="text-gray-400 text-xs mt-1">Every 5 minutes</p>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-black/30 rounded-lg p-3">
+                    <p className="text-gray-400 text-xs mb-1">Data Source</p>
+                    <p className="text-white text-sm font-medium">{serviceStatus.site.name}</p>
+                    <p className="text-gray-400 text-xs">Site ID: {serviceStatus.site.siteId}</p>
+                  </div>
+                  
+                  <div className="bg-black/30 rounded-lg p-3">
+                    <p className="text-gray-400 text-xs mb-1">Last Updated</p>
+                    <p className="text-white text-sm">{formatTimestamp(serviceStatus.lastUpdate)}</p>
+                  </div>
+                </div>
+              )}
+              
+              {!isBackendConnected && (
+                <div className="mt-4 bg-yellow-500/20 border border-yellow-400/30 rounded-lg p-3">
+                  <p className="text-yellow-200 text-sm">
+                    ⚠️ USGS service not running. Start the backend server to enable automatic updates.
+                  </p>
+                  <p className="text-yellow-200/70 text-xs mt-1">
+                    Run: cd backend && npm start
+                  </p>
                 </div>
               )}
             </div>
