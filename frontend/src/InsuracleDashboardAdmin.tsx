@@ -566,8 +566,15 @@ export default function InsuracleDashboardAdmin({ setUserType }: ParamifyDashboa
             <div className="space-y-4">
               <div className={`rounded-lg p-6 ${floodLevel >= threshold ? 'bg-gradient-to-r from-red-500/20 to-orange-500/20 border border-red-400/30' : 'bg-gradient-to-r from-blue-500/20 to-purple-500/20'}`}>
                 <div className="text-center">
-                  <div className={`text-3xl font-bold mb-2 ${floodLevel >= threshold ? 'text-red-300' : 'text-white'}`}>{floodLevel.toFixed(1)} units</div>
-                  <div className="text-gray-300">(Threshold: {threshold.toFixed(1)})</div>
+                  <div className={`text-3xl font-bold mb-2 ${floodLevel >= threshold ? 'text-red-300' : 'text-white'}`}>
+                    {(floodLevel / 100000000000).toFixed(2)} ft
+                  </div>
+                  <div className="text-gray-300">
+                    (Threshold: {thresholdInFeet.toFixed(1)} ft)
+                  </div>
+                  <div className="text-gray-400 text-sm mt-1">
+                    = {floodLevel.toFixed(0)} units
+                  </div>
                   {floodLevel >= threshold && (
                     <div className="mt-2 text-red-300 font-semibold">⚠️ THRESHOLD EXCEEDED</div>
                   )}
