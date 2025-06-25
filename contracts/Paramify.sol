@@ -11,6 +11,10 @@ contract Paramify is AccessControl {
     AggregatorV3Interface public priceFeed;
     uint256 public insuranceAmount;
     bool public isInitialized;
+    
+    // Dynamic flood threshold with 12 feet default (12 * 100000000000 = 1200000000000)
+    uint256 public floodThreshold = 1200000000000;
+    address public owner;
 
     struct Policy {
         address customer;
@@ -21,12 +25,20 @@ contract Paramify is AccessControl {
     }
 
     mapping(address => Policy) public policies;
-    int256 public constant FLOOD_THRESHOLD = 3000e8;
 
+    // Events
     event InsurancePurchased(address indexed customer, uint256 premium, uint256 coverage);
     event PayoutTriggered(address indexed customer, uint256 amount);
+    event ThresholdChanged(uint256 oldThreshold, uint256 newThreshold);
+    event OracleAddressUpdated(address indexed oldOracle, address indexed newOracle);
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Unauthorized: Not owner");
+        _;
+    }
 
     constructor(address _priceFeedAddress) {
+        owner = msg.sender;
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(ORACLE_UPDATER_ROLE, msg.sender);
         _grantRole(INSURANCE_ADMIN_ROLE, msg.sender);
@@ -44,7 +56,28 @@ contract Paramify is AccessControl {
     }
 
     function setOracleAddress(address _oracleAddress) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(_oracleAddress != address(0), "Invalid oracle address");
+        address oldOracle = address(priceFeed);
         priceFeed = AggregatorV3Interface(_oracleAddress);
+        emit OracleAddressUpdated(oldOracle, _oracleAddress);
+    }
+
+    // Threshold management functions
+    function setThreshold(uint256 _newThreshold) external onlyOwner {
+        require(_newThreshold > 0, "Threshold must be positive");
+        require(_newThreshold <= 10000000000000, "Threshold too high"); // Max 100 feet
+        uint256 oldThreshold = floodThreshold;
+        floodThreshold = _newThreshold;
+        emit ThresholdChanged(oldThreshold, _newThreshold);
+    }
+
+    function getCurrentThreshold() external view returns (uint256) {
+        return floodThreshold;
+    }
+
+    function getThresholdInFeet() external view returns (uint256) {
+        // Convert contract units back to feet (divide by 100000000000)
+        return floodThreshold / 100000000000;
     }
 
     function buyInsurance(uint256 _coverage) external payable {
@@ -72,7 +105,7 @@ contract Paramify is AccessControl {
         require(!policy.paidOut, "Payout already issued");
 
         int256 floodLevel = getLatestPrice();
-        require(floodLevel >= FLOOD_THRESHOLD, "Flood level below threshold");
+        require(uint256(floodLevel) >= floodThreshold, "Flood level below threshold");
 
         policy.paidOut = true;
         policy.active = false;
@@ -81,6 +114,16 @@ contract Paramify is AccessControl {
         require(sent, "Payout failed");
 
         emit PayoutTriggered(msg.sender, policy.coverage);
+    }
+
+    // Check if payout conditions are met
+    function isPayoutEligible(address _customer) external view returns (bool) {
+        Policy memory policy = policies[_customer];
+        if (!policy.active || policy.paidOut) {
+            return false;
+        }
+        int256 floodLevel = getLatestPrice();
+        return uint256(floodLevel) >= floodThreshold;
     }
 
     function withdraw() external onlyRole(DEFAULT_ADMIN_ROLE) {
@@ -92,6 +135,12 @@ contract Paramify is AccessControl {
 
     function getContractBalance() external view returns (uint256) {
         return address(this).balance;
+    }
+
+    // Transfer ownership
+    function transferOwnership(address newOwner) external onlyOwner {
+        require(newOwner != address(0), "Invalid new owner");
+        owner = newOwner;
     }
 
     receive() external payable {}

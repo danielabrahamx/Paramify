@@ -12,6 +12,62 @@ const PORT = process.env.PORT || 3001;
 const PARAMIFY_ADDRESS = process.env.PARAMIFY_ADDRESS;
 const MOCK_ORACLE_ADDRESS = process.env.MOCK_ORACLE_ADDRESS;
 
+// Paramify ABI (threshold management functions)
+const PARAMIFY_ABI = [
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_newThreshold",
+        "type": "uint256"
+      }
+    ],
+    "name": "setThreshold",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getCurrentThreshold",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getThresholdInFeet",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "floodThreshold",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  }
+];
+
 // Mock Oracle ABI (only the functions we need)
 const MOCK_ORACLE_ABI = [
   {
@@ -69,6 +125,7 @@ let latestFloodData = {
 let provider;
 let signer;
 let mockOracleContract;
+let paramifyContract;
 
 async function initializeEthers() {
   try {
@@ -85,8 +142,9 @@ async function initializeEthers() {
     const privateKey = '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
     signer = new ethers.Wallet(privateKey, provider);
     
-    // Initialize contract instance
+    // Initialize contract instances
     mockOracleContract = new ethers.Contract(MOCK_ORACLE_ADDRESS, MOCK_ORACLE_ABI, signer);
+    paramifyContract = new ethers.Contract(PARAMIFY_ADDRESS, PARAMIFY_ABI, signer);
     
     console.log('✅ Ethereum provider initialized');
     console.log('Connected to:', await signer.getAddress());
@@ -155,11 +213,10 @@ async function updateOracleContract(waterLevel) {
     }
     
     // Convert water level to the format expected by the contract
-    // The contract expects values with 8 decimal places
-    // We'll multiply by 1000 to convert feet to a larger unit for the threshold comparison
-    const scaledValue = Math.floor(waterLevel * 1000 * 1e8);
+    // Backend scales data: feet * 100000000000 = contract units
+    const scaledValue = Math.floor(waterLevel * 100000000000);
     
-    console.log(`🔄 Updating oracle with scaled value: ${scaledValue} (${waterLevel * 1000} units)`);
+    console.log(`🔄 Updating oracle with scaled value: ${scaledValue} (${waterLevel} feet)`);
     
     // Get current gas price
     const gasPrice = await provider.getFeeData();
@@ -223,8 +280,111 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-app.get('/api/flood-data', (req, res) => {
-  res.json(latestFloodData);
+app.get('/api/flood-data', async (req, res) => {
+  try {
+    // Include threshold information if contract is available
+    let thresholdData = null;
+    if (paramifyContract) {
+      try {
+        const thresholdUnits = await paramifyContract.getCurrentThreshold();
+        const thresholdFeet = Number(thresholdUnits) / 100000000000;
+        thresholdData = {
+          thresholdUnits: thresholdUnits.toString(),
+          thresholdFeet: thresholdFeet
+        };
+      } catch (error) {
+        console.warn('Could not fetch threshold data:', error.message);
+      }
+    }
+    
+    res.json({
+      ...latestFloodData,
+      threshold: thresholdData
+    });
+  } catch (error) {
+    res.json(latestFloodData);
+  }
+});
+
+// Threshold management endpoints
+app.get('/api/threshold', async (req, res) => {
+  try {
+    if (!paramifyContract) {
+      return res.status(503).json({ error: 'Blockchain connection not available' });
+    }
+    
+    const thresholdUnits = await paramifyContract.getCurrentThreshold();
+    const thresholdFeet = Number(thresholdUnits) / 100000000000;
+    
+    res.json({
+      thresholdFeet: thresholdFeet,
+      thresholdUnits: thresholdUnits.toString(),
+      lastUpdate: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error fetching threshold:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/threshold', async (req, res) => {
+  try {
+    const { thresholdFeet } = req.body;
+    
+    // Validate input
+    if (typeof thresholdFeet !== 'number' || thresholdFeet <= 0) {
+      return res.status(400).json({ error: 'Invalid threshold value. Must be a positive number.' });
+    }
+    
+    if (thresholdFeet > 100) {
+      return res.status(400).json({ error: 'Threshold too high. Maximum is 100 feet.' });
+    }
+    
+    if (!paramifyContract || !signer) {
+      return res.status(503).json({ error: 'Blockchain connection not available' });
+    }
+    
+    // Convert feet to contract units
+    const thresholdUnits = Math.floor(thresholdFeet * 100000000000);
+    
+    console.log(`📊 Setting threshold to ${thresholdFeet} feet (${thresholdUnits} units)`);
+    
+    // Get current gas price
+    const gasPrice = await provider.getFeeData();
+    
+    // Update the threshold
+    const tx = await paramifyContract.setThreshold(thresholdUnits, {
+      gasPrice: gasPrice.gasPrice
+    });
+    
+    console.log(`📝 Threshold update transaction sent: ${tx.hash}`);
+    
+    // Wait for confirmation
+    const receipt = await tx.wait();
+    console.log(`✅ Threshold updated successfully! Block: ${receipt.blockNumber}`);
+    
+    // Verify the update
+    const newThreshold = await paramifyContract.getCurrentThreshold();
+    const newThresholdFeet = Number(newThreshold) / 100000000000;
+    
+    res.json({
+      success: true,
+      message: 'Threshold updated successfully',
+      thresholdFeet: newThresholdFeet,
+      thresholdUnits: newThreshold.toString(),
+      transactionHash: tx.hash,
+      blockNumber: receipt.blockNumber
+    });
+  } catch (error) {
+    console.error('Error updating threshold:', error);
+    
+    // Handle specific error cases
+    if (error.code === 'CALL_EXCEPTION' && error.reason?.includes('Unauthorized')) {
+      return res.status(403).json({ error: 'Unauthorized: Only contract owner can update threshold' });
+    }
+    
+    res.status(500).json({ error: error.message });
+  }
 });
 
 app.post('/api/manual-update', async (req, res) => {
@@ -248,9 +408,24 @@ app.get('/api/status', async (req, res) => {
   try {
     // Get current oracle value
     let oracleValue = null;
+    let thresholdData = null;
+    
     if (mockOracleContract) {
       const rawValue = await mockOracleContract.latestAnswer();
-      oracleValue = Number(rawValue) / 1e8 / 1000; // Convert back to feet
+      oracleValue = Number(rawValue) / 100000000000; // Convert back to feet
+    }
+    
+    if (paramifyContract) {
+      try {
+        const thresholdUnits = await paramifyContract.getCurrentThreshold();
+        const thresholdFeet = Number(thresholdUnits) / 100000000000;
+        thresholdData = {
+          thresholdFeet: thresholdFeet,
+          thresholdUnits: thresholdUnits.toString()
+        };
+      } catch (error) {
+        console.warn('Could not fetch threshold data:', error.message);
+      }
     }
     
     res.json({
@@ -263,7 +438,8 @@ app.get('/api/status', async (req, res) => {
       updateInterval: '5 minutes',
       nextUpdate: latestFloodData.lastUpdate ? 
         new Date(new Date(latestFloodData.lastUpdate).getTime() + 5 * 60 * 1000).toISOString() : 
-        null
+        null,
+      threshold: thresholdData
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -280,6 +456,8 @@ async function startServer() {
       console.log(`   - GET  /api/health`);
       console.log(`   - GET  /api/flood-data`);
       console.log(`   - GET  /api/status`);
+      console.log(`   - GET  /api/threshold`);
+      console.log(`   - POST /api/threshold`);
       console.log(`   - POST /api/manual-update`);
     });
     

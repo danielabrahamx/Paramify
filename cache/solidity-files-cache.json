@@ -74,8 +74,8 @@
       ]
     },
     "C:\\Users\\danie\\Paramify-1\\contracts\\Paramify.sol": {
-      "lastModificationDate": 1750804157360,
-      "contentHash": "086b62e9519c3da3c2fb7668ef675b94",
+      "lastModificationDate": 1750812557118,
+      "contentHash": "2a07bab62311c60184248cb7e1ca9a62",
       "sourceName": "contracts/Paramify.sol",
       "solcConfig": {
         "version": "0.8.28",

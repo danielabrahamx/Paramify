@@ -12,7 +12,8 @@ export default function InsuracleDashboard({ setUserType }: InsuracleDashboardPr
   const [walletAddress, setWalletAddress] = useState<string>("");
   const [ethBalance, setEthBalance] = useState<number>(0);
   const [floodLevel, setFloodLevel] = useState<number>(0);
-  const [threshold, setThreshold] = useState<number>(3000);
+  const [threshold, setThreshold] = useState<number>(1200000000000); // 12 feet default
+  const [thresholdInFeet, setThresholdInFeet] = useState<number>(12);
   const [policyAmount, setPolicyAmount] = useState<number>(1);
   const [premium, setPremium] = useState<number>(0.1);
   const [insuranceAmount, setInsuranceAmount] = useState<number>(0);
@@ -60,9 +61,18 @@ export default function InsuracleDashboard({ setUserType }: InsuracleDashboardPr
           // Get flood level
           try {
             const latestFlood = await contract.getLatestPrice();
-            setFloodLevel(Number(latestFlood) / 1e8); // assuming 8 decimals
+            setFloodLevel(Number(latestFlood));
           } catch (e) {
             console.warn('Could not fetch flood level:', e);
+          }
+          
+          // Get current threshold
+          try {
+            const currentThreshold = await contract.floodThreshold();
+            setThreshold(Number(currentThreshold));
+            setThresholdInFeet(Number(currentThreshold) / 100000000000);
+          } catch (e) {
+            console.warn('Could not fetch threshold:', e);
           }
           
           // Check if user has active policy
@@ -100,7 +110,13 @@ export default function InsuracleDashboard({ setUserType }: InsuracleDashboardPr
         
         // Update flood level from USGS data
         if (status.oracleValue !== null) {
-          setFloodLevel(status.oracleValue * 1000); // Convert back to units
+          setFloodLevel(status.oracleValue * 100000000000); // Convert feet to contract units
+        }
+        
+        // Update threshold from service status
+        if (status.threshold) {
+          setThresholdInFeet(status.threshold.thresholdFeet);
+          setThreshold(Number(status.threshold.thresholdUnits));
         }
       } catch (error) {
         console.error('Failed to fetch USGS service status:', error);
@@ -382,7 +398,7 @@ export default function InsuracleDashboard({ setUserType }: InsuracleDashboardPr
                     <div className="bg-black/30 rounded-lg p-3">
                       <p className="text-gray-400 text-xs mb-1">USGS Water Level</p>
                       <p className="text-white font-bold">{serviceStatus.currentFloodLevel?.toFixed(2) || 'N/A'} ft</p>
-                      <p className="text-gray-400 text-xs mt-1">= {((serviceStatus.currentFloodLevel || 0) * 1000).toFixed(1)} units</p>
+                      <p className="text-gray-400 text-xs mt-1">= {((serviceStatus.currentFloodLevel || 0) * 100000000000).toFixed(0)} units</p>
                     </div>
                     <div className="bg-black/30 rounded-lg p-3">
                       <p className="text-gray-400 text-xs mb-1">Next Update In</p>
@@ -427,7 +443,7 @@ export default function InsuracleDashboard({ setUserType }: InsuracleDashboardPr
                     <p className="text-white"><span className="text-green-300">Premium:</span> {premium.toFixed(1)} ETH</p>
                     <p className="text-white"><span className="text-green-300">Coverage:</span> {policyAmount.toFixed(1)} ETH</p>
                     <p className="text-white"><span className="text-green-300">Status:</span> Active</p>
-                    {floodLevel >= 3000 && (
+                    {floodLevel >= threshold && (
                       <div className="mt-4">
                         <button
                           onClick={handleTriggerPayout}

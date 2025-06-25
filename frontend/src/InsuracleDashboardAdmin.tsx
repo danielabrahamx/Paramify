@@ -12,16 +12,17 @@ export default function InsuracleDashboardAdmin({ setUserType }: ParamifyDashboa
   const [walletAddress, setWalletAddress] = useState<string>("");
   const [ethBalance, setEthBalance] = useState<number>(0);
   const [floodLevel, setFloodLevel] = useState<number>(0);
-  const [threshold, setThreshold] = useState<number>(3000);
+  const [threshold, setThreshold] = useState<number>(1200000000000); // 12 feet default
+  const [thresholdInFeet, setThresholdInFeet] = useState<number>(12);
+  const [newThresholdFeet, setNewThresholdFeet] = useState<string>("");
   const [coverageAmount, setCoverageAmount] = useState<string>("");
   const [premium, setPremium] = useState<number>(0);
   const [insuranceAmount, setInsuranceAmount] = useState<number>(0);
   const [contractBalance, setContractBalance] = useState<number>(0);
   const [fundAmount, setFundAmount] = useState<string>("");
-  const [newFloodLevel, setNewFloodLevel] = useState<string>("");
   const [transactionStatus, setTransactionStatus] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isUpdatingFlood, setIsUpdatingFlood] = useState(false);
+  const [isUpdatingThreshold, setIsUpdatingThreshold] = useState(false);
   const [isFunding, setIsFunding] = useState(false);
   const [hasActivePolicy, setHasActivePolicy] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -110,7 +111,16 @@ export default function InsuracleDashboardAdmin({ setUserType }: ParamifyDashboa
             const contractBal = await contract.getContractBalance();
             setContractBalance(Number(ethers.formatEther(contractBal)));
             const latestFlood = await contract.getLatestPrice();
-            setFloodLevel(Number(latestFlood) / 1e8);
+            setFloodLevel(Number(latestFlood));
+            
+            // Fetch current threshold
+            try {
+              const currentThreshold = await contract.floodThreshold();
+              setThreshold(Number(currentThreshold));
+              setThresholdInFeet(Number(currentThreshold) / 100000000000);
+            } catch (e) {
+              console.log('Could not fetch threshold:', e);
+            }
           } catch (e) {
             console.log('Contract calls failed, contract may not be deployed yet:', e);
           }
@@ -153,7 +163,13 @@ export default function InsuracleDashboardAdmin({ setUserType }: ParamifyDashboa
         
         // Update flood level from USGS data
         if (status.oracleValue !== null) {
-          setFloodLevel(status.oracleValue * 1000); // Convert back to units
+          setFloodLevel(status.oracleValue * 100000000000); // Convert feet to contract units
+        }
+        
+        // Update threshold from service status
+        if (status.threshold) {
+          setThresholdInFeet(status.threshold.thresholdFeet);
+          setThreshold(Number(status.threshold.thresholdUnits));
         }
       } catch (error) {
         console.error('Failed to fetch USGS service status:', error);
@@ -206,29 +222,54 @@ export default function InsuracleDashboardAdmin({ setUserType }: ParamifyDashboa
     setPremium(calculatePremium(coverage));
   };
 
-  const handleUpdateFloodLevel = async () => {
-    if (!window.ethereum || !newFloodLevel) return;
-    setIsUpdatingFlood(true);
-    setTransactionStatus('Updating flood level...');
-    try {
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
-      const mockOracleContract = new ethers.Contract(MOCK_ORACLE_ADDRESS, MOCK_ORACLE_ABI, signer);
-      // Convert flood level to proper format (8 decimals)
-      const floodLevelFormatted = Math.floor(parseFloat(newFloodLevel) * 1e8);
-      const tx = await mockOracleContract.updateAnswer(floodLevelFormatted);
-      await tx.wait();
-      setTransactionStatus('Flood level updated successfully!');
-      // Refresh the flood level display
-      const paramifyContract = new ethers.Contract(PARAMIFY_ADDRESS, PARAMIFY_ABI, provider);
-      const latestFlood = await paramifyContract.getLatestPrice();
-      setFloodLevel(Number(latestFlood) / 1e8);
-      setNewFloodLevel(""); // Clear the input after successful update
-    } catch (e: any) {
-      console.error('Flood level update error:', e);
-      setTransactionStatus(`Flood update failed! ${e.reason || e.message || 'Unknown error'}`);
+  const handleUpdateThreshold = async () => {
+    if (!newThresholdFeet) return;
+    
+    const thresholdValue = parseFloat(newThresholdFeet);
+    if (isNaN(thresholdValue) || thresholdValue <= 0) {
+      setTransactionStatus('Invalid threshold value. Must be a positive number.');
+      setTimeout(() => setTransactionStatus(''), 5000);
+      return;
     }
-    setIsUpdatingFlood(false);
+    
+    if (thresholdValue > 100) {
+      setTransactionStatus('Threshold too high. Maximum is 100 feet.');
+      setTimeout(() => setTransactionStatus(''), 5000);
+      return;
+    }
+    
+    setIsUpdatingThreshold(true);
+    setTransactionStatus('Updating threshold...');
+    
+    try {
+      const response = await fetch('http://localhost:3001/api/threshold', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ thresholdFeet: thresholdValue })
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok && data.success) {
+        setTransactionStatus('Threshold updated successfully!');
+        setThresholdInFeet(data.thresholdFeet);
+        setThreshold(Number(data.thresholdUnits));
+        setNewThresholdFeet(""); // Clear input
+        
+        // Refresh service status
+        const status = await usgsApi.getStatus();
+        setServiceStatus(status);
+      } else {
+        throw new Error(data.error || 'Failed to update threshold');
+      }
+    } catch (e: any) {
+      console.error('Threshold update error:', e);
+      setTransactionStatus(`Threshold update failed! ${e.message || 'Unknown error'}`);
+    }
+    
+    setIsUpdatingThreshold(false);
     setTimeout(() => setTransactionStatus(''), 5000);
   };
 
@@ -534,26 +575,38 @@ export default function InsuracleDashboardAdmin({ setUserType }: ParamifyDashboa
               </div>
               {isAdmin && (
                 <div className="bg-black/20 rounded-lg p-4 mt-2">
+                  <h4 className="text-white font-medium mb-3 flex items-center">
+                    <Shield className="h-4 w-4 mr-2 text-yellow-300" />
+                    Threshold Management
+                  </h4>
+                  <div className="bg-black/30 rounded-lg p-3 mb-3">
+                    <p className="text-gray-400 text-xs mb-1">Current Threshold</p>
+                    <p className="text-white font-bold">{thresholdInFeet.toFixed(1)} feet</p>
+                    <p className="text-gray-400 text-xs mt-1">= {threshold.toFixed(0)} units</p>
+                  </div>
                   <div className="space-y-3">
                     <input
                       type="number"
-                      value={newFloodLevel}
-                      onChange={(e) => setNewFloodLevel(e.target.value)}
-                      className="w-full bg-black/30 border border-white/20 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="New flood level"
+                      value={newThresholdFeet}
+                      onChange={(e) => setNewThresholdFeet(e.target.value)}
+                      className="w-full bg-black/30 border border-white/20 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+                      placeholder="New threshold (feet)"
+                      step="0.1"
+                      min="0"
+                      max="100"
                     />
                     <button
-                      onClick={handleUpdateFloodLevel}
-                      disabled={isUpdatingFlood || !newFloodLevel}
-                      className="w-full bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 disabled:from-gray-500 disabled:to-gray-600 text-white font-bold py-3 px-6 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.02] disabled:transform-none"
+                      onClick={handleUpdateThreshold}
+                      disabled={isUpdatingThreshold || !newThresholdFeet}
+                      className="w-full bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700 disabled:from-gray-500 disabled:to-gray-600 text-white font-bold py-3 px-6 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.02] disabled:transform-none"
                     >
-                      {isUpdatingFlood ? (
+                      {isUpdatingThreshold ? (
                         <div className="flex items-center justify-center">
                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                           Updating...
                         </div>
                       ) : (
-                        'Update Flood Level'
+                        'Update Threshold'
                       )}
                     </button>
                   </div>
@@ -592,7 +645,7 @@ export default function InsuracleDashboardAdmin({ setUserType }: ParamifyDashboa
                     <div className="bg-black/30 rounded-lg p-3">
                       <p className="text-gray-400 text-xs mb-1">USGS Water Level</p>
                       <p className="text-white font-bold">{serviceStatus.currentFloodLevel?.toFixed(2) || 'N/A'} ft</p>
-                      <p className="text-gray-400 text-xs mt-1">= {((serviceStatus.currentFloodLevel || 0) * 1000).toFixed(1)} units</p>
+                      <p className="text-gray-400 text-xs mt-1">= {((serviceStatus.currentFloodLevel || 0) * 100000000000).toFixed(0)} units</p>
                     </div>
                     <div className="bg-black/30 rounded-lg p-3">
                       <p className="text-gray-400 text-xs mb-1">Next Update In</p>
@@ -639,7 +692,7 @@ export default function InsuracleDashboardAdmin({ setUserType }: ParamifyDashboa
                   <div className="space-y-2">
                     <p className="text-white"><span className="text-green-300">Coverage:</span> {insuranceAmount.toFixed(1)} ETH</p>
                     <p className="text-white"><span className="text-green-300">Status:</span> Active</p>
-                    {floodLevel >= 3000 && (
+                    {floodLevel >= threshold && (
                       <div className="mt-4">
                         <button
                           onClick={handleTriggerPayout}

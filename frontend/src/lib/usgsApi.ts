@@ -27,6 +27,10 @@ export interface ServiceStatus {
   };
   updateInterval: string;
   nextUpdate: string | null;
+  threshold?: {
+    thresholdFeet: number;
+    thresholdUnits: number;
+  };
 }
 
 export const usgsApi = {
