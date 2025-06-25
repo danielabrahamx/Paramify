@@ -1,6 +1,14 @@
 # Paramify: Decentralized Flood Insurance Proof of Concept
 
-<img width="1120" alt="image" src="https://github.com/user-attachments/assets/ad6f409e-fb67-4b6a-8ceb-b9b61aa4e336" />
+<img width="1120" alt="image" src="https://github.com/user-attachments/assets/ad6f409e-fb67-4b6a-8ceb-b9b61aa### 2. Set Flood L### 4. Edge Cases
+- **Low Flood Level**: When flood levels are below 3 feet, payouts will fail with "Flood level below threshold".
+- **Low Contract Balance**: Deploy a new contract without funding and try payout (fails: "Payout failed").
+- **Duplicate Policy**: Try buying another policy while one is active (fails: "Policy already active").
+- **Backend Connectivity**: Ensure the backend server is running to see real-time flood data updates.
+- The flood level is automatically updated every 5 minutes by the backend server.
+- Current flood levels are displayed in the frontend dashboard in feet (e.g., "4.11 ft").
+- Admins can also manually update flood levels if needed.
+- The system triggers payouts when flood levels exceed 3 feet (threshold can be adjusted)." />
 
 
 ## Overview
@@ -11,10 +19,11 @@ Designed for the Avalanche Summit hackathon, Paramify highlights the potential f
 
 ### Features
 - **Insurance Purchase**: Users buy policies by paying a premium (10% of coverage), e.g., 0.1 ETH for 1 ETH coverage.
-- **Automated Payouts**: Payouts are triggered when the flood level (from a mock oracle) exceeds 3000 units, sending coverage (e.g., 1 ETH) to the policyholder.
+- **Automated Payouts**: Payouts are triggered when the flood level exceeds 3 feet, sending coverage (e.g., 1 ETH) to the policyholder.
+- **Real-Time Flood Data**: Backend server fetches live USGS water level data every 5 minutes and updates the blockchain oracle.
 - **Role-Based Access**: Admins manage the contract, oracle updaters set flood levels, and insurance admins configure parameters.
-- **Frontend Interface**: A React-based UI allows users to connect wallets, buy insurance, update flood levels, and trigger payouts.
-- **Mock Oracle**: A `MockV3Aggregator` simulates Chainlink flood level data for local testing.
+- **Frontend Interface**: A React-based UI allows users to connect wallets, buy insurance, view flood levels, and trigger payouts.
+- **Backend API**: Node.js server provides real-time flood data integration with automatic oracle updates.
 
 
 
@@ -30,6 +39,31 @@ Designed for the Avalanche Summit hackathon, Paramify highlights the potential f
 ## Quick Start: Choose Your Environment
 
 This project can be run in either **GitHub Codespaces** (cloud) or on your **local machine**. Follow the instructions for your preferred environment below.
+
+---
+
+## Quick Deployment Summary
+
+For a complete local deployment, run these commands in order:
+
+```bash
+# Terminal 1: Start Hardhat node
+npx hardhat node
+
+# Terminal 2: Deploy contracts and fund
+npx hardhat run scripts/deploy.js --network localhost
+npx hardhat run scripts/fund-contract.js --network localhost
+
+# Terminal 3: Start backend server (real-time flood data)
+cd backend
+npm start
+
+# Terminal 4: Start frontend
+cd frontend  
+npm run dev
+```
+
+Then configure MetaMask with the Hardhat network and import test accounts. The system will show real-time flood level updates in the backend terminal every 5 minutes.
 
 ---
 
@@ -61,7 +95,16 @@ npx hardhat run scripts/fund-contract.js --network localhost
 ```
 - This sends 2 ETH to the contract for payouts.
 
-### 5. Serve the Frontend
+### 5. Start the Backend Server
+```bash
+cd backend
+npm start
+```
+- This starts the backend server on port 3001 with real-time USGS flood data updates.
+- The server fetches flood levels every 5 minutes and updates the blockchain oracle.
+- You'll see live flood level updates in the terminal (e.g., "Latest water level: 4.11 ft").
+
+### 6. Serve the Frontend
 ```bash
 cd frontend
 http-server -p 8080
@@ -80,7 +123,7 @@ http-server -p 8080
   - Chain ID: 31337
   - Currency Symbol: ETH
 - Import test accounts using private keys from the Hardhat node output (see terminal logs).
-- Update `frontend/index.html` with the correct `PARAMIFY_ADDRESS` if you redeploy contracts.
+- Update `frontend/src/lib/contract.ts` with the correct contract addresses if you redeploy contracts.
 
 ---
 
@@ -112,15 +155,21 @@ npx hardhat run scripts/fund-contract.js --network localhost
 ```
 - This sends 2 ETH to the contract for payouts.
 
-### 5. Serve the Frontend
+### 5. Start the Backend Server
+```bash
+cd backend
+npm start
+```
+- This starts the backend server on port 3001 with real-time USGS flood data updates.
+- The server fetches flood levels every 5 minutes and updates the blockchain oracle.
+- You'll see live flood level updates in the terminal (e.g., "Latest water level: 4.11 ft").
+
+### 6. Serve the Frontend
 ```bash
 cd frontend
-http-server -p 8080
+npm run dev
 ```
-- If `http-server` is unavailable, use:
-  ```bash
-  python3 -m http.server 8080
-  ```
+- This starts the Vite development server on port 8080.
 - Open [http://localhost:8080](http://localhost:8080) in your browser.
 
 ### 6. Configure MetaMask
@@ -130,11 +179,20 @@ http-server -p 8080
   - Chain ID: 31337
   - Currency Symbol: ETH
 - Import test accounts using private keys from the Hardhat node output (see terminal logs).
-- Update `frontend/index.html` with the correct `PARAMIFY_ADDRESS` if you redeploy contracts.
+- Update `frontend/src/lib/contract.ts` and `backend/.env` with the correct contract addresses if you redeploy contracts.
 
 ---
 
-**Note:** For both environments, always update the frontend contract address after redeployment. The address in `frontend/index.html` must match the deployed contract.
+**Note:** For both environments, always update the contract addresses in `frontend/src/lib/contract.ts` and `backend/.env` after redeployment. The backend server provides real-time flood data updates that you can monitor in the terminal output.
+
+## Live Flood Data Monitoring
+
+The Paramify system now includes real-time flood level monitoring:
+
+- **Backend Terminal**: Shows timestamped flood level updates every 5 minutes (e.g., "Latest water level: 4.11 ft at 2025-06-25T04:45:00.000-04:00")
+- **Frontend Dashboard**: Displays current flood levels in feet with automatic updates
+- **API Endpoint**: Access flood data at `http://localhost:3001/api/flood-data`
+- **Blockchain Oracle**: Automatically updated with scaled flood values for smart contract integration
 
 ## Demo Instructions
 
@@ -210,17 +268,23 @@ paramify/
 │   ├── Paramify.sol          # Main insurance contract
 │   └── mocks/
 │       └── MockV3Aggregator.sol # Mock Chainlink oracle
-├── scripts/
-│   ├── deploy.js              # Deploy contracts
-│   ├── fund-contract.js       # Fund contract with ETH
-│   └── check-policy.js        # Check policy and balances
+├── backend/
+│   ├── server.js             # Node.js backend with USGS integration
+│   ├── package.json          # Backend dependencies
+│   └── .env                  # Contract addresses and configuration
 ├── frontend/
-│   └── index.html             # React frontend
+│   ├── src/                  # React frontend source
+│   ├── package.json          # Frontend dependencies
+│   └── vite.config.ts        # Vite configuration (port 8080)
+├── scripts/
+│   ├── deploy.js             # Deploy contracts
+│   ├── fund-contract.js      # Fund contract with ETH
+│   └── check-policy.js       # Check policy and balances
 ├── test/
 │   └── Paramify.test.js      # Unit tests
-├── hardhat.config.js          # Hardhat configuration
-├── package.json               # Node.js dependencies
-└── README.md                  # This file
+├── hardhat.config.js         # Hardhat configuration
+├── package.json              # Root dependencies
+└── README.md                 # This file
 ```
 
 ## Security and Dependencies
@@ -248,20 +312,20 @@ paramify/
 
 ## Troubleshooting
 
-- **http-server not found:**
-  - Install: `npm install -g http-server`.
-  - Alternative: `python3 -m http.server 8080`.
-- **Frontend/MetaMask not connecting in Codespaces:**
-  - Make sure both ports 8080 (frontend) and 8545 (Hardhat node) are public in the Codespaces "Ports" tab.
-  - Use the public URLs in your browser and MetaMask.
-- **Contract Funding Fails:**
-  - Ensure `Paramify.sol` has `receive() external payable {}`.
-  - Redeploy if necessary: `npx hardhat run scripts/deploy.js --network localhost`.
-- **Payout Fails:**
-  - Check contract balance (`getContractBalance`): Must be ≥ coverage (e.g., 1 ETH).
-  - Verify flood level ≥ 3000 units.
+- **Backend server not starting:**
+  - Ensure Node.js is installed and run `npm install` in the backend directory.
+  - Check if port 3001 is available: `netstat -ano | findstr :3001` (Windows) or `lsof -i :3001` (Mac/Linux).
+- **Frontend not loading:**
+  - Ensure frontend is running on port 8080: `npm run dev` in the frontend directory.
+  - Check if port 8080 is available and kill conflicting processes if needed.
+- **No flood data updates:**
+  - Check the backend terminal for error messages.
+  - Verify the backend server is connected to the blockchain (should show "Connected to: 0xf39...").
+- **Contract address mismatch:**
+  - Update both `frontend/src/lib/contract.ts` and `backend/.env` with the new contract addresses after redeployment.
 - **MetaMask Issues:**
   - Ensure Hardhat network is added and accounts are imported.
+  - Verify you're connected to the correct network (Chain ID 31337).
 
 ## License
 
