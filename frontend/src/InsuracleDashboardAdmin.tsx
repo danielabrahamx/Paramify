@@ -1,8 +1,24 @@
 import { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
-import { Waves, Shield, TrendingUp, Wallet, AlertCircle, CheckCircle, ArrowLeft, RefreshCw, Activity } from 'lucide-react';
+import { Waves, Shield, TrendingUp, Wallet, AlertCircle, CheckCircle, ArrowLeft, RefreshCw, Activity, FileText, BarChart3 } from 'lucide-react';
 import { PARAMIFY_ADDRESS, PARAMIFY_ABI, MOCK_ORACLE_ADDRESS, MOCK_ORACLE_ABI } from './lib/contract';
 import { usgsApi, formatTimestamp, getTimeUntilNextUpdate, type ServiceStatus } from './lib/usgsApi';
+
+interface Policy {
+  policyId: string;
+  policyholder: string;
+  premium: string;
+  coverage: string;
+  purchaseTime: string;
+  active: boolean;
+  paidOut: boolean;
+}
+
+interface PolicyStats {
+  total: number;
+  active: number;
+  paidOut: number;
+}
 
 interface ParamifyDashboardProps {
   setUserType?: (userType: string | null) => void;
@@ -30,6 +46,9 @@ export default function InsuracleDashboardAdmin({ setUserType }: ParamifyDashboa
   const [serviceStatus, setServiceStatus] = useState<ServiceStatus | null>(null);
   const [isBackendConnected, setIsBackendConnected] = useState(false);
   const [nextUpdateCountdown, setNextUpdateCountdown] = useState<string>('');
+  const [policies, setPolicies] = useState<Policy[]>([]);
+  const [policyStats, setPolicyStats] = useState<PolicyStats>({ total: 0, active: 0, paidOut: 0 });
+  const [isLoadingPolicies, setIsLoadingPolicies] = useState(false);
 
   const handleConnectWallet = async () => {
     if (!window.ethereum) {
@@ -196,6 +215,50 @@ export default function InsuracleDashboardAdmin({ setUserType }: ParamifyDashboa
 
     return () => clearInterval(interval);
   }, [serviceStatus]);
+
+  // Fetch policies
+  const fetchPolicies = async () => {
+    setIsLoadingPolicies(true);
+    try {
+      const response = await fetch('http://localhost:3001/api/policies');
+      const data = await response.json();
+      if (data.success) {
+        setPolicies(data.policies);
+      }
+    } catch (error) {
+      console.error('Failed to fetch policies:', error);
+    }
+    setIsLoadingPolicies(false);
+  };
+
+  // Fetch policy stats
+  const fetchPolicyStats = async () => {
+    try {
+      const response = await fetch('http://localhost:3001/api/policies/stats');
+      const data = await response.json();
+      if (data.success) {
+        setPolicyStats(data.stats);
+      }
+    } catch (error) {
+      console.error('Failed to fetch policy stats:', error);
+    }
+  };
+
+  // Fetch policies and stats on mount and when backend connects
+  useEffect(() => {
+    if (isBackendConnected) {
+      fetchPolicies();
+      fetchPolicyStats();
+      
+      // Refresh every 10 seconds
+      const interval = setInterval(() => {
+        fetchPolicies();
+        fetchPolicyStats();
+      }, 10000);
+      
+      return () => clearInterval(interval);
+    }
+  }, [isBackendConnected]);
 
   const handleManualUSGSUpdate = async () => {
     try {
@@ -807,6 +870,113 @@ export default function InsuracleDashboardAdmin({ setUserType }: ParamifyDashboa
               </div>
             </>
           )}
+
+          {/* Policy Management Section */}
+          <div className="mb-8">
+            <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
+              <FileText className="mr-2 h-5 w-5 text-indigo-300" />
+              Policy Management
+            </h3>
+            
+            {/* Policy Statistics */}
+            <div className="bg-black/20 rounded-lg p-4 mb-4">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="text-white font-medium flex items-center">
+                  <BarChart3 className="h-4 w-4 mr-2 text-purple-300" />
+                  Policy Statistics
+                </h4>
+                <button
+                  onClick={() => {
+                    fetchPolicies();
+                    fetchPolicyStats();
+                  }}
+                  className="text-blue-300 hover:text-blue-200 transition-colors"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="bg-black/30 rounded-lg p-3 text-center">
+                  <p className="text-gray-400 text-xs mb-1">Total Policies</p>
+                  <p className="text-white font-bold text-2xl">{policyStats.total}</p>
+                </div>
+                <div className="bg-green-500/20 rounded-lg p-3 text-center">
+                  <p className="text-green-300 text-xs mb-1">Active</p>
+                  <p className="text-green-200 font-bold text-2xl">{policyStats.active}</p>
+                </div>
+                <div className="bg-blue-500/20 rounded-lg p-3 text-center">
+                  <p className="text-blue-300 text-xs mb-1">Paid Out</p>
+                  <p className="text-blue-200 font-bold text-2xl">{policyStats.paidOut}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Policy List */}
+            <div className="bg-black/20 rounded-lg p-4">
+              <h4 className="text-white font-medium mb-3">All Policies</h4>
+              {isLoadingPolicies ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+                </div>
+              ) : policies.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-400">No policies found</p>
+                </div>
+              ) : (
+                <div className="space-y-3 max-h-96 overflow-y-auto">
+                  {policies.map((policy) => (
+                    <div
+                      key={policy.policyId}
+                      className={`bg-black/30 rounded-lg p-4 border ${
+                        policy.paidOut
+                          ? 'border-blue-400/30'
+                          : policy.active
+                          ? 'border-green-400/30'
+                          : 'border-gray-400/30'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center space-x-3">
+                          <span className="text-white font-medium">Policy #{policy.policyId}</span>
+                          <span
+                            className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                              policy.paidOut
+                                ? 'bg-blue-500/20 text-blue-300'
+                                : policy.active
+                                ? 'bg-green-500/20 text-green-300'
+                                : 'bg-gray-500/20 text-gray-300'
+                            }`}
+                          >
+                            {policy.paidOut ? 'Paid Out' : policy.active ? 'Active' : 'Inactive'}
+                          </span>
+                        </div>
+                        <span className="text-gray-400 text-xs">
+                          {new Date(policy.purchaseTime).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <p className="text-gray-400">Policyholder</p>
+                          <p className="text-white font-mono text-xs">
+                            {policy.policyholder.slice(0, 6)}...{policy.policyholder.slice(-4)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-gray-400">Coverage</p>
+                          <p className="text-white font-medium">{parseFloat(policy.coverage).toFixed(2)} ETH</p>
+                        </div>
+                      </div>
+                      <div className="mt-2 pt-2 border-t border-white/10">
+                        <p className="text-gray-400 text-xs">
+                          Premium paid: {parseFloat(policy.premium).toFixed(3)} ETH
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
 
           {/* Always show roles section */}
           <div className="mb-8">

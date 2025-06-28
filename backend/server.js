@@ -12,7 +12,7 @@ const PORT = process.env.PORT || 3001;
 const PARAMIFY_ADDRESS = process.env.PARAMIFY_ADDRESS;
 const MOCK_ORACLE_ADDRESS = process.env.MOCK_ORACLE_ADDRESS;
 
-// Paramify ABI (threshold management functions)
+// Paramify ABI (threshold management and policy functions)
 const PARAMIFY_ABI = [
   {
     "inputs": [
@@ -65,6 +65,135 @@ const PARAMIFY_ABI = [
     ],
     "stateMutability": "view",
     "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getAllPolicies",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "policyId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "address",
+            "name": "policyholder",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "premium",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "coverage",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "purchaseTime",
+            "type": "uint256"
+          },
+          {
+            "internalType": "bool",
+            "name": "active",
+            "type": "bool"
+          },
+          {
+            "internalType": "bool",
+            "name": "paidOut",
+            "type": "bool"
+          }
+        ],
+        "internalType": "struct Paramify.Policy[]",
+        "name": "",
+        "type": "tuple[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getPolicyStats",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "total",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "active",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "paidOut",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "policyId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "policyholder",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "coverage",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "premium",
+        "type": "uint256"
+      }
+    ],
+    "name": "PolicyCreated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "policyId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "bool",
+        "name": "active",
+        "type": "bool"
+      },
+      {
+        "indexed": false,
+        "internalType": "bool",
+        "name": "paidOut",
+        "type": "bool"
+      }
+    ],
+    "name": "PolicyStatusChanged",
+    "type": "event"
   }
 ];
 
@@ -446,23 +575,170 @@ app.get('/api/status', async (req, res) => {
   }
 });
 
+// Policy management endpoints
+app.get('/api/policies', async (req, res) => {
+  try {
+    if (!paramifyContract) {
+      return res.status(503).json({ error: 'Blockchain connection not available' });
+    }
+    
+    const policies = await paramifyContract.getAllPolicies();
+    
+    // Format policies for frontend
+    const formattedPolicies = policies.map(policy => ({
+      policyId: policy.policyId.toString(),
+      policyholder: policy.policyholder,
+      premium: ethers.formatEther(policy.premium),
+      coverage: ethers.formatEther(policy.coverage),
+      purchaseTime: new Date(Number(policy.purchaseTime) * 1000).toISOString(),
+      active: policy.active,
+      paidOut: policy.paidOut
+    }));
+    
+    res.json({
+      success: true,
+      policies: formattedPolicies,
+      count: formattedPolicies.length
+    });
+  } catch (error) {
+    console.error('Error fetching policies:', error);
+    res.status(500).json({ 
+      success: false,
+      error: error.message,
+      message: 'Failed to fetch policies'
+    });
+  }
+});
+
+app.get('/api/policies/stats', async (req, res) => {
+  try {
+    if (!paramifyContract) {
+      return res.status(503).json({ 
+        success: false,
+        error: 'Blockchain connection not available',
+        message: 'Please try again later'
+      });
+    }
+    
+    const stats = await paramifyContract.getPolicyStats();
+    
+    res.json({
+      success: true,
+      stats: {
+        total: Number(stats.total),
+        active: Number(stats.active),
+        paidOut: Number(stats.paidOut)
+      },
+      lastUpdated: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error fetching policy stats:', error);
+    res.status(500).json({ 
+      success: false,
+      error: error.message,
+      message: 'Failed to fetch policy statistics'
+    });
+  }
+});
+
+// Get single policy by ID
+app.get('/api/policies/:id', async (req, res) => {
+  try {
+    if (!paramifyContract) {
+      return res.status(503).json({ 
+        success: false,
+        error: 'Blockchain connection not available'
+      });
+    }
+
+    const policyId = req.params.id;
+    const policy = await paramifyContract.policies(policyId);
+
+    if (!policy.policyholder || policy.policyholder === ethers.ZeroAddress) {
+      return res.status(404).json({
+        success: false,
+        error: 'Policy not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      policy: {
+        policyId: policyId,
+        policyholder: policy.policyholder,
+        premium: ethers.formatEther(policy.premium),
+        coverage: ethers.formatEther(policy.coverage),
+        purchaseTime: new Date(Number(policy.purchaseTime) * 1000).toISOString(),
+        active: policy.active,
+        paidOut: policy.paidOut
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching policy:', error);
+    res.status(500).json({ 
+      success: false,
+      error: error.message,
+      message: 'Failed to fetch policy'
+    });
+  }
+});
+
+// Setup event listeners for policies
+async function setupPolicyEventListeners() {
+  if (!paramifyContract || !provider) {
+    console.log('⏳ Policy event listeners pending blockchain connection...');
+    return;
+  }
+
+  try {
+    // Listen for PolicyCreated events
+    paramifyContract.on('PolicyCreated', (policyId, policyholder, coverage, premium, event) => {
+      console.log('🎉 New policy created:', {
+        policyId: policyId.toString(),
+        policyholder,
+        coverage: ethers.formatEther(coverage),
+        premium: ethers.formatEther(premium)
+      });
+    });
+
+    // Listen for PolicyStatusChanged events
+    paramifyContract.on('PolicyStatusChanged', (policyId, active, paidOut, event) => {
+      console.log('📝 Policy status changed:', {
+        policyId: policyId.toString(),
+        active,
+        paidOut
+      });
+    });
+
+    console.log('✅ Policy event listeners established');
+  } catch (error) {
+    console.error('❌ Error setting up policy event listeners:', error);
+  }
+}
+
 // Start the server
 async function startServer() {
   try {
     // Start Express server first
     app.listen(PORT, () => {
       console.log(`🚀 Paramify backend server running on port ${PORT}`);
-      console.log(`🌐 API endpoints available:`);
-      console.log(`   - GET  /api/health`);
-      console.log(`   - GET  /api/flood-data`);
-      console.log(`   - GET  /api/status`);
-      console.log(`   - GET  /api/threshold`);
-      console.log(`   - POST /api/threshold`);
-      console.log(`   - POST /api/manual-update`);
+    console.log(`🌐 API endpoints available:`);
+    console.log(`   - GET  /api/health`);
+    console.log(`   - GET  /api/flood-data`);
+    console.log(`   - GET  /api/status`);
+    console.log(`   - GET  /api/threshold`);
+    console.log(`   - POST /api/threshold`);
+    console.log(`   - POST /api/manual-update`);
+    console.log(`   - GET  /api/policies`);
+    console.log(`   - GET  /api/policies/:id`);
+    console.log(`   - GET  /api/policies/stats`);
     });
     
     // Initialize Ethereum connection (non-blocking)
     await initializeEthers();
+    
+    // Setup policy event listeners
+    await setupPolicyEventListeners();
     
     // Perform initial data fetch
     await updateFloodData();

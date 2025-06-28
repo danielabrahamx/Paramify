@@ -1,8 +1,18 @@
 import { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
-import { Waves, Shield, TrendingUp, Wallet, Eye, EyeOff, AlertCircle, CheckCircle, ArrowLeft, Activity } from 'lucide-react';
+import { Waves, Shield, TrendingUp, Wallet, Eye, EyeOff, AlertCircle, CheckCircle, ArrowLeft, Activity, FileText } from 'lucide-react';
 import { PARAMIFY_ADDRESS, PARAMIFY_ABI } from './lib/contract';
 import { usgsApi, formatTimestamp, getTimeUntilNextUpdate, type ServiceStatus } from './lib/usgsApi';
+
+interface PolicyInfo {
+  policyId: string;
+  policyholder: string;
+  premium: string;
+  coverage: string;
+  purchaseTime: string;
+  active: boolean;
+  paidOut: boolean;
+}
 
 interface InsuracleDashboardProps {
   setUserType?: (userType: string | null) => void;
@@ -25,6 +35,7 @@ export default function InsuracleDashboard({ setUserType }: InsuracleDashboardPr
   const [serviceStatus, setServiceStatus] = useState<ServiceStatus | null>(null);
   const [isBackendConnected, setIsBackendConnected] = useState(false);
   const [nextUpdateCountdown, setNextUpdateCountdown] = useState<string>('');
+  const [policyInfo, setPolicyInfo] = useState<PolicyInfo | null>(null);
 
   // Connect wallet and fetch initial data
   useEffect(() => {
@@ -75,14 +86,28 @@ export default function InsuracleDashboard({ setUserType }: InsuracleDashboardPr
             console.warn('Could not fetch threshold:', e);
           }
           
-          // Check if user has active policy
+          // Check if user has active policy using the new NFT system
           try {
-            const policy = await contract.policies(accounts[0]);
-            if (policy.customer !== "0x0000000000000000000000000000000000000000" && policy.active) {
-              setHasActivePolicy(true);
-              setInsuranceAmount(Number(ethers.formatEther(policy.coverage)));
-              setPolicyAmount(Number(ethers.formatEther(policy.coverage)));
-              setPremium(Number(ethers.formatEther(policy.premium)));
+            const activePolicyId = await contract.activePolicyId(accounts[0]);
+            if (activePolicyId && activePolicyId > 0) {
+              const policy = await contract.policies(activePolicyId);
+              if (policy.active) {
+                setHasActivePolicy(true);
+                setInsuranceAmount(Number(ethers.formatEther(policy.coverage)));
+                setPolicyAmount(Number(ethers.formatEther(policy.coverage)));
+                setPremium(Number(ethers.formatEther(policy.premium)));
+                
+                // Set policy info for display
+                setPolicyInfo({
+                  policyId: activePolicyId.toString(),
+                  policyholder: policy.policyholder,
+                  premium: ethers.formatEther(policy.premium),
+                  coverage: ethers.formatEther(policy.coverage),
+                  purchaseTime: new Date(Number(policy.purchaseTime) * 1000).toISOString(),
+                  active: policy.active,
+                  paidOut: policy.paidOut
+                });
+              }
             }
           } catch (e) {
             console.warn('Could not fetch policy:', e);
@@ -185,9 +210,24 @@ export default function InsuracleDashboard({ setUserType }: InsuracleDashboardPr
       setTransactionStatus('Transaction sent. Waiting for confirmation...');
       await tx.wait();
       
-      setTransactionStatus('Transaction successful!');
+      setTransactionStatus('Transaction successful! Policy NFT minted.');
       setHasActivePolicy(true);
       setInsuranceAmount(policyAmount);
+      
+      // Fetch the new policy info
+      const activePolicyId = await contract.activePolicyId(walletAddress);
+      if (activePolicyId && activePolicyId > 0) {
+        const policy = await contract.policies(activePolicyId);
+        setPolicyInfo({
+          policyId: activePolicyId.toString(),
+          policyholder: policy.policyholder,
+          premium: ethers.formatEther(policy.premium),
+          coverage: ethers.formatEther(policy.coverage),
+          purchaseTime: new Date(Number(policy.purchaseTime) * 1000).toISOString(),
+          active: policy.active,
+          paidOut: policy.paidOut
+        });
+      }
       
       // Update balances
       const balance = await provider.getBalance(walletAddress);
@@ -260,9 +300,18 @@ export default function InsuracleDashboard({ setUserType }: InsuracleDashboardPr
       setTransactionStatus('Transaction sent. Waiting for confirmation...');
       await tx.wait();
       
-      setTransactionStatus('Payout received successfully!');
+      setTransactionStatus('Payout received successfully! Policy NFT updated.');
       setHasActivePolicy(false);
       setInsuranceAmount(0);
+      
+      // Update policy info to show it's paid out
+      if (policyInfo) {
+        setPolicyInfo({
+          ...policyInfo,
+          active: false,
+          paidOut: true
+        });
+      }
       
       // Update balances
       const balance = await provider.getBalance(walletAddress);
@@ -443,11 +492,30 @@ export default function InsuracleDashboard({ setUserType }: InsuracleDashboardPr
             <div className="space-y-4">
               {hasActivePolicy ? (
                 <div className="bg-green-500/20 border border-green-400/30 rounded-lg p-6">
-                  <h4 className="text-green-200 font-semibold text-lg mb-4">Insurance Policy</h4>
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="text-green-200 font-semibold text-lg flex items-center">
+                      <FileText className="h-5 w-5 mr-2" />
+                      Insurance Policy NFT
+                    </h4>
+                    {policyInfo && (
+                      <span className="bg-green-500/30 text-green-200 px-3 py-1 rounded-full text-sm font-semibold">
+                        #{policyInfo.policyId}
+                      </span>
+                    )}
+                  </div>
                   <div className="space-y-2">
-                    <p className="text-white"><span className="text-green-300">Premium:</span> {premium.toFixed(1)} ETH</p>
-                    <p className="text-white"><span className="text-green-300">Coverage:</span> {policyAmount.toFixed(1)} ETH</p>
+                    <p className="text-white"><span className="text-green-300">Premium:</span> {premium.toFixed(3)} ETH</p>
+                    <p className="text-white"><span className="text-green-300">Coverage:</span> {policyAmount.toFixed(2)} ETH</p>
                     <p className="text-white"><span className="text-green-300">Status:</span> Active</p>
+                    {policyInfo && (
+                      <>
+                        <p className="text-white"><span className="text-green-300">Purchase Date:</span> {new Date(policyInfo.purchaseTime).toLocaleDateString()}</p>
+                        <div className="mt-4 pt-4 border-t border-green-400/20">
+                          <p className="text-green-200 text-sm mb-2">🎨 Your policy is represented as an NFT on the blockchain</p>
+                          <p className="text-green-300/70 text-xs">This NFT serves as immutable proof of your insurance coverage and cannot be transferred.</p>
+                        </div>
+                      </>
+                    )}
                     {floodLevel >= threshold && (
                       <div className="mt-4">
                         <button
@@ -469,9 +537,32 @@ export default function InsuracleDashboard({ setUserType }: InsuracleDashboardPr
                     )}
                   </div>
                 </div>
+              ) : policyInfo && policyInfo.paidOut ? (
+                <div className="bg-blue-500/20 border border-blue-400/30 rounded-lg p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="text-blue-200 font-semibold text-lg flex items-center">
+                      <FileText className="h-5 w-5 mr-2" />
+                      Policy NFT - Paid Out
+                    </h4>
+                    <span className="bg-blue-500/30 text-blue-200 px-3 py-1 rounded-full text-sm font-semibold">
+                      #{policyInfo.policyId}
+                    </span>
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-white"><span className="text-blue-300">Premium Paid:</span> {parseFloat(policyInfo.premium).toFixed(3)} ETH</p>
+                    <p className="text-white"><span className="text-blue-300">Coverage Amount:</span> {parseFloat(policyInfo.coverage).toFixed(2)} ETH</p>
+                    <p className="text-white"><span className="text-blue-300">Status:</span> Paid Out ✓</p>
+                    <p className="text-white"><span className="text-blue-300">Purchase Date:</span> {new Date(policyInfo.purchaseTime).toLocaleDateString()}</p>
+                    <div className="mt-4 pt-4 border-t border-blue-400/20">
+                      <p className="text-blue-200 text-sm">💰 This policy has been successfully paid out</p>
+                      <p className="text-blue-300/70 text-xs mt-1">The NFT metadata has been updated to reflect the payout status.</p>
+                    </div>
+                  </div>
+                </div>
               ) : (
                 <div className="bg-yellow-500/20 border border-yellow-400/30 rounded-lg p-4">
                   <p className="text-yellow-200 font-medium">No active policy</p>
+                  <p className="text-yellow-300/70 text-sm mt-1">Purchase insurance to receive a policy NFT</p>
                 </div>
               )}
               

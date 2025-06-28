@@ -7,7 +7,16 @@ Paramify is a blockchain-based flood insurance protocol that uses real-time USGS
 
 <system_components>
 <smart_contracts directory="/contracts/">
-<contract name="Paramify.sol" type="main">Main insurance contract with dynamic threshold management</contract>
+<contract name="Paramify.sol" type="main">
+Main insurance contract with dynamic threshold management and NFT-based policy system
+<features>
+- ERC-721 NFT implementation for policy representation
+- Soulbound tokens (non-transferable after minting)
+- On-chain policy metadata with SVG generation
+- Real-time metadata updates for policy status changes
+- Comprehensive policy tracking and statistics
+</features>
+</contract>
 <contract name="MockV3Aggregator.sol" type="oracle">Chainlink-compatible oracle for testing</contract>
 <contract name="Lock.sol" type="template">Template contract (can be ignored)</contract>
 </smart_contracts>
@@ -19,6 +28,9 @@ Paramify is a blockchain-based flood insurance protocol that uses real-time USGS
 - Handles USGS API integration and blockchain oracle updates
 - Provides REST endpoints for frontend communication
 - Manages automatic flood data updates every 5 minutes
+- Tracks policy NFTs and maintains real-time policy data
+- Provides policy statistics and detailed policy information
+- Handles event listening for policy creation and status changes
 </responsibilities>
 </backend_service>
 
@@ -92,7 +104,9 @@ export const MOCK_ORACLE_ADDRESS = '<NEW_ORACLE_ADDRESS>';
 <feature>Manage flood thresholds dynamically</feature>
 <feature>Fund the insurance contract</feature>
 <feature>Monitor system status and USGS data</feature>
-<feature>View contract balances and user policies</feature>
+<feature>View and manage all policy NFTs with real-time updates</feature>
+<feature>Track policy statistics (active, paid out, total)</feature>
+<feature>View detailed policy information including coverage and status</feature>
 </features>
 <access_control>
 <admin_wallet>0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266</admin_wallet>
@@ -168,6 +182,9 @@ export const MOCK_ORACLE_ADDRESS = '<NEW_ORACLE_ADDRESS>';
 <step number="3">Start frontend: `cd frontend && npm run dev` (Linux/macOS) or `cd frontend; npm run dev` (Windows)</step>
 <step number="4">Test customer flow: Buy insurance, wait for threshold trigger, claim payout</step>
 <step number="5">Test admin flow: Update threshold, fund contract, monitor system</step>
+<step number="6">Test NFT policy system: Verify minting, metadata updates, and soulbound nature</step>
+<step number="7">Verify policy statistics and admin dashboard displays</step>
+<step number="8">Test edge cases (multiple policies, max policy count)</step>
 </test_sequence>
 </complete_system_test>
 
@@ -178,6 +195,23 @@ export const MOCK_ORACLE_ADDRESS = '<NEW_ORACLE_ADDRESS>';
 - Verify immediate UI updates after threshold changes
 </test_parameters>
 </threshold_testing>
+
+<policy_nft_testing>
+<test_parameters>
+- Verify NFT is minted immediately after policy purchase
+- Check metadata updates when policy status changes
+- Confirm soulbound nature (attempt transfers between accounts)
+- Test edge cases (multiple policies, max policy count)
+- Verify admin dashboard displays all policy data correctly
+- Check customer dashboard shows owned policy NFTs
+</test_parameters>
+<verification_points>
+- Metadata should match policy details exactly
+- SVG image should reflect current policy status
+- Policy statistics should update in real-time
+- All API endpoints should return correct policy data
+</verification_points>
+</policy_nft_testing>
 
 ## Environment Management
 
@@ -190,6 +224,40 @@ export const MOCK_ORACLE_ADDRESS = '<NEW_ORACLE_ADDRESS>';
 - Frontend depends on backend for USGS data
 - Backend depends on Hardhat node for blockchain interaction
 - All services can gracefully handle temporary disconnections
+
+## NFT Policy System Implementation
+
+<policy_nft_system>
+<key_features>
+- Each insurance policy is minted as an ERC-721 NFT
+- NFTs are soulbound (non-transferable after minting)
+- Policy details stored on-chain in NFT metadata
+- Real-time metadata updates when policy status changes
+- SVG-based visual representation of policy status
+</key_features>
+
+<implementation_details>
+<contract_features>
+- Inherits from OpenZeppelin's ERC721 contract
+- Uses Counters for unique policy ID generation
+- Policy struct stores all policy details
+- _update() override enforces soulbound tokens
+- tokenURI() generates dynamic metadata
+</contract_features>
+
+<backend_integration>
+- Event listeners for PolicyCreated and PolicyStatusChanged
+- API endpoints for policy data retrieval
+- Automatic metadata refresh on status changes
+</backend_integration>
+
+<frontend_display>
+- Admin dashboard shows all policies with status indicators
+- Customer dashboard displays owned policy NFTs
+- Real-time updates when policy status changes
+</frontend_display>
+</implementation_details>
+</policy_nft_system>
 
 ## Security Considerations
 
@@ -334,6 +402,31 @@ export const MOCK_ORACLE_ADDRESS = '<NEW_ORACLE_ADDRESS>';
 </solution>
 <prevention>Include OS detection as standard practice for all AI agents</prevention>
 </issue>
+
+<issue category="nft" date_added="2025-06-28">
+<title>NFT Metadata Not Updating</title>
+<problem>Policy NFT metadata doesn't reflect status changes (active → paid out)</problem>
+<cause>Event listener not properly handling PolicyStatusChanged events or metadata generation failing</cause>
+<solution>
+<step number="1">Check backend event listener logs for PolicyStatusChanged events</step>
+<step number="2">Verify tokenURI() function handles status changes correctly</step>
+<step number="3">Ensure metadata generation includes latest policy state</step>
+<step number="4">Test with manual policy status updates if needed</step>
+</solution>
+<prevention>Implement comprehensive event listener testing during development</prevention>
+</issue>
+
+<issue category="nft" date_added="2025-06-28">
+<title>NFT Transfer Attempts Succeeding</title>
+<problem>Soulbound NFTs can still be transferred between accounts</problem>
+<cause>Incorrect _update() override implementation in ERC721 contract</cause>
+<solution>
+<step number="1">Verify _update() function properly checks for minting vs transfers</step>
+<step number="2">Ensure all transfer functions are properly overridden</step>
+<step number="3">Add comprehensive transfer tests to test suite</step>
+</solution>
+<prevention>Include transfer tests in all contract deployments</prevention>
+</issue>
 </standard_issues>
 </troubleshooting_guide>
 
@@ -375,6 +468,9 @@ Documentation/
 - `POST /api/threshold` - Update threshold (admin only)
 - `GET /api/flood-data` - USGS flood data
 - `POST /api/manual-update` - Force USGS data refresh
+- `GET /api/policies` - List all policy NFTs with details
+- `GET /api/policies/:id` - Get details for a specific policy NFT
+- `GET /api/policies/stats` - Get policy statistics (active, paid out, total)
 
 ### External APIs
 - **USGS**: https://waterservices.usgs.gov/nwis/iv/ (Site: 01646500, Parameter: 00065)
