@@ -3,7 +3,7 @@ const cors = require('cors');
 const axios = require('axios');
 const { ethers } = require('ethers');
 const cron = require('node-cron');
-require('dotenv').config();
+require('dotenv').config({ path: '../.env' });
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -258,8 +258,8 @@ let paramifyContract;
 
 async function initializeEthers() {
   try {
-    // Connect to local Hardhat node with timeout
-    provider = new ethers.JsonRpcProvider('http://127.0.0.1:8545');
+    // Connect to Arbitrum Sepolia
+    provider = new ethers.JsonRpcProvider(process.env.ARBITRUM_SEPOLIA_RPC_URL);
     
     // Test connection with timeout
     const network = await Promise.race([
@@ -267,9 +267,11 @@ async function initializeEthers() {
       new Promise((_, reject) => setTimeout(() => reject(new Error('Connection timeout')), 5000))
     ]);
     
-    // Use the first Hardhat account (admin account)
-    const privateKey = '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
-    signer = new ethers.Wallet(privateKey, provider);
+    // Use the deployer wallet from environment
+    if (!process.env.PRIVATE_KEY) {
+      throw new Error('PRIVATE_KEY not set in .env file');
+    }
+    signer = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
     
     // Initialize contract instances
     mockOracleContract = new ethers.Contract(MOCK_ORACLE_ADDRESS, MOCK_ORACLE_ABI, signer);

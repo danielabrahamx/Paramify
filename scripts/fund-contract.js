@@ -1,8 +1,12 @@
 const { ethers } = require("hardhat");
+require("dotenv").config();
 
 async function main() {
   const [deployer] = await ethers.getSigners();
-  const contractAddress = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512"; // Updated to latest Paramify address
+  const contractAddress = process.env.PARAMIFY_ADDRESS;
+  if (!contractAddress) {
+    throw new Error("PARAMIFY_ADDRESS not set in .env file");
+  }
   const amount = ethers.parseEther("2");
 
   console.log("Funding contract with:", deployer.address);

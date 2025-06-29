@@ -46,9 +46,9 @@ export default function InsuracleDashboard({ setUserType }: InsuracleDashboardPr
           
           // Check network
           const network = await provider.getNetwork();
-          if (network.chainId !== 31337n) { // Hardhat network chainId
+          if (network.chainId !== 421614n) { // Arbitrum Sepolia chainId
             setNetworkError(true);
-            setTransactionStatus('Please connect to Hardhat network (localhost:8545, Chain ID: 31337)');
+            setTransactionStatus('Please connect to Arbitrum Sepolia network (Chain ID: 421614)');
             return;
           } else {
             setNetworkError(false);
@@ -114,7 +114,7 @@ export default function InsuracleDashboard({ setUserType }: InsuracleDashboardPr
           }
         } catch (e) {
           console.error('Error connecting to wallet:', e);
-          setTransactionStatus('Error connecting to wallet. Make sure MetaMask is installed and connected to localhost:8545');
+          setTransactionStatus('Error connecting to wallet. Make sure MetaMask is installed and connected to Arbitrum Sepolia');
         }
       }
     };
@@ -381,7 +381,7 @@ export default function InsuracleDashboard({ setUserType }: InsuracleDashboardPr
                 <AlertCircle className="h-5 w-5 text-red-400 mr-3" />
                 <div>
                   <p className="text-red-200 font-semibold">Wrong Network</p>
-                  <p className="text-red-300 text-sm">Please connect to Hardhat network (localhost:8545, Chain ID: 31337)</p>
+                  <p className="text-red-300 text-sm">Please connect to Arbitrum Sepolia network (Chain ID: 421614)</p>
                 </div>
               </div>
             </div>
