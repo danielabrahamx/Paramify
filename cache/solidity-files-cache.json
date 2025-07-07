@@ -37,6 +37,78 @@
         "Lock"
       ]
     },
+    "C:\\Users\\danie\\Paramify-1\\contracts\\MinimalTest.sol": {
+      "lastModificationDate": 1751895461996,
+      "contentHash": "0b97ab9e1a9d1cdf2a568ae8bf9b70da",
+      "sourceName": "contracts/MinimalTest.sol",
+      "solcConfig": {
+        "version": "0.8.28",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.0"
+      ],
+      "artifacts": [
+        "MinimalTest"
+      ]
+    },
+    "C:\\Users\\danie\\Paramify-1\\contracts\\MinimalTestContract.sol": {
+      "lastModificationDate": 1751895462012,
+      "contentHash": "b97ced913e1bcc9dd1b3eb094f01341b",
+      "sourceName": "contracts/MinimalTestContract.sol",
+      "solcConfig": {
+        "version": "0.8.28",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.0"
+      ],
+      "artifacts": [
+        "MinimalTest"
+      ]
+    },
     "C:\\Users\\danie\\Paramify-1\\contracts\\mocks\\MockV3Aggregator.sol": {
       "lastModificationDate": 1750804157360,
       "contentHash": "65cf4a2da5cb81e94f2b10a031f60211",
@@ -74,7 +146,7 @@
       ]
     },
     "C:\\Users\\danie\\Paramify-1\\contracts\\Paramify.sol": {
-      "lastModificationDate": 1750812557118,
+      "lastModificationDate": 1751893887301,
       "contentHash": "2a07bab62311c60184248cb7e1ca9a62",
       "sourceName": "contracts/Paramify.sol",
       "solcConfig": {
@@ -113,7 +185,7 @@
       ]
     },
     "C:\\Users\\danie\\Paramify-1\\node_modules\\@openzeppelin\\contracts\\access\\AccessControl.sol": {
-      "lastModificationDate": 1750804172422,
+      "lastModificationDate": 1751244017289,
       "contentHash": "f60854e1b5ae9e9a001e401837098651",
       "sourceName": "@openzeppelin/contracts/access/AccessControl.sol",
       "solcConfig": {
@@ -188,8 +260,44 @@
         "AggregatorV3Interface"
       ]
     },
+    "C:\\Users\\danie\\Paramify-1\\node_modules\\@openzeppelin\\contracts\\utils\\Context.sol": {
+      "lastModificationDate": 1751244017470,
+      "contentHash": "2783b901218e982baedae531a748ed8d",
+      "sourceName": "@openzeppelin/contracts/utils/Context.sol",
+      "solcConfig": {
+        "version": "0.8.28",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "Context"
+      ]
+    },
     "C:\\Users\\danie\\Paramify-1\\node_modules\\@openzeppelin\\contracts\\utils\\introspection\\ERC165.sol": {
-      "lastModificationDate": 1750804172529,
+      "lastModificationDate": 1751244017486,
       "contentHash": "2eda65da6379d6cae75a10a53a332de6",
       "sourceName": "@openzeppelin/contracts/utils/introspection/ERC165.sol",
       "solcConfig": {
@@ -226,44 +334,8 @@
         "ERC165"
       ]
     },
-    "C:\\Users\\danie\\Paramify-1\\node_modules\\@openzeppelin\\contracts\\utils\\Context.sol": {
-      "lastModificationDate": 1750804172524,
-      "contentHash": "2783b901218e982baedae531a748ed8d",
-      "sourceName": "@openzeppelin/contracts/utils/Context.sol",
-      "solcConfig": {
-        "version": "0.8.28",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [],
-      "versionPragmas": [
-        "^0.8.20"
-      ],
-      "artifacts": [
-        "Context"
-      ]
-    },
     "C:\\Users\\danie\\Paramify-1\\node_modules\\@openzeppelin\\contracts\\access\\IAccessControl.sol": {
-      "lastModificationDate": 1750804172422,
+      "lastModificationDate": 1751244017289,
       "contentHash": "e081c05380efc602d54c6f9bd1a8b6fc",
       "sourceName": "@openzeppelin/contracts/access/IAccessControl.sol",
       "solcConfig": {
@@ -299,7 +371,7 @@
       ]
     },
     "C:\\Users\\danie\\Paramify-1\\node_modules\\@openzeppelin\\contracts\\utils\\introspection\\IERC165.sol": {
-      "lastModificationDate": 1750804172529,
+      "lastModificationDate": 1751244017488,
       "contentHash": "e5ab9d1880e29adb92916789d4d033a6",
       "sourceName": "@openzeppelin/contracts/utils/introspection/IERC165.sol",
       "solcConfig": {
@@ -332,6 +404,79 @@
       ],
       "artifacts": [
         "IERC165"
+      ]
+    },
+    "C:\\Users\\danie\\Paramify-1\\contracts\\ParamifySimple.sol": {
+      "lastModificationDate": 1751895461997,
+      "contentHash": "02b5fd0385b3013e26fd91a6bd89f936",
+      "sourceName": "contracts/ParamifySimple.sol",
+      "solcConfig": {
+        "version": "0.8.28",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.0"
+      ],
+      "artifacts": [
+        "IPriceFeed",
+        "ParamifySimple"
+      ]
+    },
+    "C:\\Users\\danie\\Paramify-1\\contracts\\SimpleTest.sol": {
+      "lastModificationDate": 1751895461996,
+      "contentHash": "079641fb4b6599d761bf8ba8d18e6dee",
+      "sourceName": "contracts/SimpleTest.sol",
+      "solcConfig": {
+        "version": "0.8.28",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.0"
+      ],
+      "artifacts": [
+        "SimpleTest"
       ]
     }
   }

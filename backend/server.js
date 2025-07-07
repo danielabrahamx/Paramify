@@ -129,8 +129,8 @@ let paramifyContract;
 
 async function initializeEthers() {
   try {
-    // Connect to local Hardhat node with timeout
-    provider = new ethers.JsonRpcProvider('http://127.0.0.1:8545');
+    // Connect to RPC endpoint with timeout
+    provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
     
     // Test connection with timeout
     const network = await Promise.race([
@@ -138,8 +138,8 @@ async function initializeEthers() {
       new Promise((_, reject) => setTimeout(() => reject(new Error('Connection timeout')), 5000))
     ]);
     
-    // Use the first Hardhat account (admin account)
-    const privateKey = '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
+    // Use the private key from environment variables
+    const privateKey = process.env.PRIVATE_KEY;
     signer = new ethers.Wallet(privateKey, provider);
     
     // Initialize contract instances
