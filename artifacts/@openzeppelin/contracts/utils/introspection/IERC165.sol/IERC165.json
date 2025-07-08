@@ -23,8 +23,8 @@
       "type": "function"
     }
   ],
-  "bytecode": "0x",
-  "deployedBytecode": "0x",
+  "bytecode": "",
+  "deployedBytecode": "",
   "linkReferences": {},
   "deployedLinkReferences": {}
 }

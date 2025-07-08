@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ai_handoff_prompt>
+    <situation>
+        <summary>We need to deploy Paramify smart contracts locally using PolkaVM on Windows with Docker</summary>
+        <current_state>
+            <docker_status>Docker Desktop installed but having connection issues with named pipes</docker_status>
+            <hardhat_config>Partially configured for PolkaVM but Docker connection failing</hardhat_config>
+            <contracts_status>Contracts exist and compile with regular Hardhat, need PolkaVM deployment</contracts_status>
+            <plugin_status>@parity/hardhat-polkadot installed but failing on Docker socket connection</plugin_status>
+        </current_state>
+    </situation>
+
+    <objectives>
+        <primary_goal>Deploy Paramify contracts locally using PolkaVM (NOT regular EVM)</primary_goal>
+        <requirements>
+            <requirement>MUST use PolkaVM for local deployment - this is critical</requirement>
+            <requirement>Configure Docker properly for Windows named pipes</requirement>
+            <requirement>Fix hardhat.config.js for proper PolkaVM configuration</requirement>
+            <requirement>Get 'npx hardhat node' working with PolkaVM</requirement>
+            <requirement>Deploy contracts using 'npx hardhat ignition deploy'</requirement>
+        </requirements>
+    </objectives>
+
+    <technical_details>
+        <environment>
+            <os>Windows</os>
+            <node_version>22.14.0</node_version>
+            <docker>Docker Desktop 28.0.1 (installed but connection issues)</docker>
+            <shell>PowerShell</shell>
+        </environment>
+        
+        <current_error>
+            <main_error>connect ENOENT /var/run/docker.sock</main_error>
+            <explanation>Polkadot plugin looking for Linux Docker socket path, but Windows uses named pipes</explanation>
+            <attempted_solutions>
+                <solution>Tried setting DOCKER_HOST environment variable</solution>
+                <solution>Tried nodeConfig with mode: 'mock'</solution>
+                <solution>Restarted Docker Desktop multiple times</solution>
+            </attempted_solutions>
+        </current_error>
+
+        <docker_context>
+            <purpose>PolkaVM requires Docker to run Substrate node + RPC adapter for full compatibility</purpose>
+            <what_we_need>
+                <item>Substrate node container (provides PolkaVM runtime)</item>
+                <item>Ethereum RPC adapter container (translates Ethereum calls to Substrate)</item>
+                <item>These run together to provide localhost:8545 endpoint with PolkaVM support</item>
+            </what_we_need>
+            <authentication>May need GitHub Container Registry (ghcr.io) login for Parity containers</authentication>
+        </docker_context>
+    </technical_details>
+
+    <current_files>
+        <hardhat_config>
+            <path>c:\Users\danie\Paramify-1\hardhat.config.js</path>
+            <current_state>
+                <polkadot_plugin>require('@parity/hardhat-polkadot') - ENABLED</polkadot_plugin>
+                <resolc_config>compilerSource: 'npm' with PolkaVM settings</resolc_config>
+                <networks>
+                    <hardhat>polkavm: true, nodeConfig: { mode: 'mock' }</hardhat>
+                    <localNode>polkavm: true, url: 'http://127.0.0.1:8545'</localNode>
+                    <polkadotHubTestnet>polkavm: true, testnet config</polkadotHubTestnet>
+                </networks>
+            </current_state>
+        </hardhat_config>
+        
+        <contracts>
+            <location>c:\Users\danie\Paramify-1\contracts\</location>
+            <main_contracts>
+                <contract>Paramify.sol (main insurance contract)</contract>
+                <contract>MockV3Aggregator.sol (price feed mock)</contract>
+            </main_contracts>
+        </contracts>
+        
+        <deployment_module>
+            <path>c:\Users\danie\Paramify-1\ignition\modules\Paramify.js</path>
+            <status>Ready for deployment, deploys MockV3Aggregator + Paramify</status>
+        </deployment_module>
+    </current_files>
+
+    <specific_tasks>
+        <task priority="1">
+            <name>Fix Docker Connection for PolkaVM</name>
+            <details>
+                <item>Diagnose why Docker socket connection failing on Windows</item>
+                <item>Determine correct named pipe path for Docker Desktop</item>
+                <item>Configure environment variables or plugin settings</item>
+                <item>May need to enable WSL2 integration or use different Docker mode</item>
+            </details>
+        </task>
+        
+        <task priority="2">
+            <name>Configure hardhat.config.js Properly</name>
+            <details>
+                <item>Ensure PolkaVM plugin configuration is correct for Windows</item>
+                <item>Set proper nodeConfig for Docker containers</item>
+                <item>Configure paths for artifacts-pvm and cache-pvm</item>
+                <item>Ensure resolc compiler settings are optimal</item>
+            </details>
+        </task>
+        
+        <task priority="3">
+            <name>GitHub Container Registry Authentication</name>
+            <details>
+                <item>Check if 'docker login ghcr.io' is needed for Parity containers</item>
+                <item>Help user create GitHub Personal Access Token if needed</item>
+                <item>Configure Docker authentication for container pulls</item>
+            </details>
+        </task>
+        
+        <task priority="4">
+            <name>Execute PolkaVM Deployment</name>
+            <details>
+                <item>Run 'npx hardhat compile' to generate PolkaVM bytecode</item>
+                <item>Start 'npx hardhat node' with PolkaVM support</item>
+                <item>Deploy using 'npx hardhat ignition deploy ./ignition/modules/Paramify.js --network localNode'</item>
+                <item>Verify contracts deployed successfully with PolkaVM bytecode</item>
+            </details>
+        </task>
+    </specific_tasks>
+
+    <success_criteria>
+        <criterion>PolkaVM local node running on localhost:8545</criterion>
+        <criterion>Contracts compiled to PolkaVM bytecode (not EVM)</criterion>
+        <criterion>MockV3Aggregator and Paramify deployed successfully</criterion>
+        <criterion>Contract addresses returned from deployment</criterion>
+        <criterion>Able to interact with contracts using PolkaVM environment</criterion>
+    </success_criteria>
+
+    <important_notes>
+        <note>DO NOT fall back to regular EVM deployment - PolkaVM is mandatory</note>
+        <note>The user's "lives depend on it" being PolkaVM, so this is critical</note>
+        <note>Docker issues are blocking PolkaVM node startup, focus there first</note>
+        <note>Windows named pipe paths are different from Linux socket paths</note>
+        <note>May need to research latest Parity documentation for Windows setup</note>
+    </important_notes>
+
+    <resources>
+        <documentation>
+            <url>https://docs.polkadot.com</url>
+            <url>https://github.com/paritytech/hardhat-polkadot</url>
+        </documentation>
+        <working_directory>c:\Users\danie\Paramify-1</working_directory>
+        <shell>PowerShell</shell>
+    </resources>
+</ai_handoff_prompt>

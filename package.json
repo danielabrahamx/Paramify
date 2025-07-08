@@ -3,21 +3,48 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
+    "compile": "npx hardhat compile",
+    "compile-pvm": "npx hardhat compile",
     "test": "npx hardhat test",
-    "compile": "npx hardhat compile"
+    "test-pvm": "npx hardhat test",
+    "node": "npx hardhat node",
+    "node-pvm": "npx hardhat node",
+    "clean": "rmdir /s /q cache-pvm artifacts-pvm 2>nul; exit 0",
+    "clean-pvm": "rmdir /s /q cache-pvm artifacts-pvm 2>nul; exit 0",
+    "deploy-local": "npx hardhat ignition deploy ./ignition/modules/Paramify.js --network hardhat",
+    "deploy-testnet": "npx hardhat ignition deploy ./ignition/modules/Paramify.js --network passetHub",
+    "deploy-pvm-local": "npx hardhat ignition deploy ./ignition/modules/Paramify.js --network hardhat",
+    "deploy-pvm-testnet": "npx hardhat ignition deploy ./ignition/modules/Paramify.js --network passetHub",
+    "verify-pvm": "npx hardhat run scripts/verify-pvm-deployment.js --network passetHub"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
   "devDependencies": {
-    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@nomicfoundation/hardhat-chai-matchers": "^2.0.9",
+    "@nomicfoundation/hardhat-ethers": "^3.0.9",
+    "@nomicfoundation/hardhat-ignition": "^0.15.12",
+    "@nomicfoundation/hardhat-ignition-ethers": "^0.15.13",
+    "@nomicfoundation/hardhat-network-helpers": "^1.0.13",
+    "@nomicfoundation/hardhat-toolbox": "^6.0.0",
+    "@nomicfoundation/hardhat-verify": "^2.0.14",
+    "@nomicfoundation/ignition-core": "^0.15.12",
     "@openzeppelin/contracts": "^5.0.2",
+    "@parity/hardhat-polkadot": "^0.1.8",
+    "@parity/resolc": "^0.3.0",
+    "@typechain/ethers-v6": "^0.5.1",
+    "@typechain/hardhat": "^9.1.0",
+    "@types/chai": "^4.3.20",
     "dotenv": "^16.5.0",
     "ethers": "^6.14.0",
-    "hardhat": "^2.24.0"
+    "hardhat": "^2.24.0",
+    "hardhat-gas-reporter": "^2.3.0",
+    "solidity-coverage": "^0.8.16",
+    "typechain": "^8.3.2"
   },
   "dependencies": {
-    "@chainlink/contracts": "^1.2.0"
+    "@chainlink/contracts": "^1.2.0",
+    "run-container": "^2.0.12"
   }
 }

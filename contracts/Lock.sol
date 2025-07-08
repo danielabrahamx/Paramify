@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.28;
+pragma solidity ^0.8.26;
 
 // Uncomment this line to use console.log
 // import "hardhat/console.sol";
@@ -29,6 +29,7 @@ contract Lock {
 
         emit Withdrawal(address(this).balance, block.timestamp);
 
-        owner.transfer(address(this).balance);
+        (bool sent, ) = owner.call{value: address(this).balance}("");
+        require(sent, "Failed to send Ether");
     }
 }

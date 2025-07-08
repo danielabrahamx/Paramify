@@ -1,0 +1,9 @@
+{
+  "network": "localNode",
+  "chainId": 420420420,
+  "contracts": {
+    "MockV3Aggregator": "0x5CC307268a1393AB9A764A20DACE848AB8275c46",
+    "Paramify": "0x21cb3940e6Ba5284E1750F1109131a8E8062b9f1"
+  },
+  "timestamp": "2025-07-08T09:55:50.162Z"
+}

@@ -10,6 +10,12 @@ artifacts/
 cache/
 coverage/
 
+# PolkaVM artifacts
+/artifacts-pvm
+/cache-pvm
+/ignition/deployments/
+/ignition/deployments/
+
 # Environment files
 .env
 .env.local

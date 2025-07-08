@@ -1,5 +1,5 @@
 require('@nomicfoundation/hardhat-toolbox');
-require('@parity/hardhat-polkadot');  // PolkaVM support plugin
+// require('@parity/hardhat-polkadot');  // Temporarily disabled for local testing
 require("dotenv").config();
 
 /** @type import('hardhat/config').HardhatUserConfig */
@@ -25,18 +25,11 @@ module.exports = {
   },
   networks: {
     hardhat: {
-      polkavm: true,  // in-memory PolkaVM node for tests
-      nodeConfig: {
-        mode: 'mock'
-      }
+      chainId: 420420420  // Use PolkaVM chain ID for consistency
     },
     localNode: {
-      polkavm: true,  // connect to standalone PolkaVM node
       url: 'http://127.0.0.1:8545',
-      chainId: 420420420,
-      nodeConfig: {
-        mode: 'mock'
-      }
+      chainId: 420420420
     },
     polkadotHubTestnet: {
       polkavm: true,

@@ -411,13 +411,17 @@ app.get('/api/status', async (req, res) => {
     let thresholdData = null;
     
     if (mockOracleContract) {
-      const rawValue = await mockOracleContract.latestAnswer();
-      oracleValue = Number(rawValue) / 100000000000; // Convert back to feet
+      try {
+        const rawValue = await mockOracleContract.latestAnswer();
+        oracleValue = Number(rawValue) / 100000000000; // Convert back to feet
+      } catch (error) {
+        console.warn('Could not fetch oracle value:', error.message);
+      }
     }
     
     if (paramifyContract) {
       try {
-        const thresholdUnits = await paramifyContract.getCurrentThreshold();
+        const thresholdUnits = await paramifyContract.floodThreshold();
         const thresholdFeet = Number(thresholdUnits) / 100000000000;
         thresholdData = {
           thresholdFeet: thresholdFeet,
@@ -428,13 +432,19 @@ app.get('/api/status', async (req, res) => {
       }
     }
     
+    // Make sure latestFloodData.siteInfo exists before using it
+    const siteInfo = latestFloodData.siteInfo || {
+      name: 'Potomac River Near Wash, DC Little Falls Pump Sta',
+      siteId: USGS_SITE_ID
+    };
+    
     res.json({
-      service: 'active',
+      service: latestFloodData.status || 'unknown',
       lastUpdate: latestFloodData.lastUpdate,
       currentFloodLevel: latestFloodData.value,
       oracleValue: oracleValue,
-      dataSource: latestFloodData.source,
-      site: latestFloodData.siteInfo,
+      dataSource: latestFloodData.source || 'USGS Water Data',
+      site: siteInfo,
       updateInterval: '5 minutes',
       nextUpdate: latestFloodData.lastUpdate ? 
         new Date(new Date(latestFloodData.lastUpdate).getTime() + 5 * 60 * 1000).toISOString() : 
@@ -442,7 +452,12 @@ app.get('/api/status', async (req, res) => {
       threshold: thresholdData
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Error in status endpoint:', error);
+    res.status(500).json({ 
+      error: 'Internal server error', 
+      message: error.message,
+      service: 'error'
+    });
   }
 });
 

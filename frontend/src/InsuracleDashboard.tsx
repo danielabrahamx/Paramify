@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
 import { Waves, Shield, TrendingUp, Wallet, Eye, EyeOff, AlertCircle, CheckCircle, ArrowLeft, Activity } from 'lucide-react';
-import { PARAMIFY_ADDRESS, PARAMIFY_ABI } from './lib/contract';
+import { PARAMIFY_ABI, getContractAddresses, isPolkaVMNetwork } from './lib/contract';
 import { usgsApi, formatTimestamp, getTimeUntilNextUpdate, type ServiceStatus } from './lib/usgsApi';
 
 interface InsuracleDashboardProps {
@@ -33,11 +33,14 @@ export default function InsuracleDashboard({ setUserType }: InsuracleDashboardPr
         try {
           const provider = new ethers.BrowserProvider(window.ethereum);
           
-          // Check network
+          // Check network and get contract addresses
           const network = await provider.getNetwork();
-          if (network.chainId !== 31337n) { // Hardhat network chainId
+          const chainId = Number(network.chainId);
+          
+          // Only support PolkaVM (420420420)
+          if (chainId !== 420420420) {
             setNetworkError(true);
-            setTransactionStatus('Please connect to Hardhat network (localhost:8545, Chain ID: 31337)');
+            setTransactionStatus('Please connect to PolkaVM Local network (Chain ID: 420420420)');
             return;
           } else {
             setNetworkError(false);
@@ -48,7 +51,9 @@ export default function InsuracleDashboard({ setUserType }: InsuracleDashboardPr
           const balance = await provider.getBalance(accounts[0]);
           setEthBalance(Number(ethers.formatEther(balance)));
           
-          const contract = new ethers.Contract(PARAMIFY_ADDRESS, PARAMIFY_ABI, provider);
+          // Get contract addresses for the current network
+          const contractAddresses = getContractAddresses(chainId);
+          const contract = new ethers.Contract(contractAddresses.paramify, PARAMIFY_ABI, provider);
           
           // Get contract balance
           try {
@@ -78,11 +83,15 @@ export default function InsuracleDashboard({ setUserType }: InsuracleDashboardPr
           // Check if user has active policy
           try {
             const policy = await contract.policies(accounts[0]);
-            if (policy.customer !== "0x0000000000000000000000000000000000000000" && policy.active) {
+            console.log("Current policy:", policy);
+            // Check if policy is active based on the active flag
+            if (policy.active) {
               setHasActivePolicy(true);
               setInsuranceAmount(Number(ethers.formatEther(policy.coverage)));
               setPolicyAmount(Number(ethers.formatEther(policy.coverage)));
               setPremium(Number(ethers.formatEther(policy.premium)));
+            } else {
+              setHasActivePolicy(false);
             }
           } catch (e) {
             console.warn('Could not fetch policy:', e);
@@ -162,7 +171,11 @@ export default function InsuracleDashboard({ setUserType }: InsuracleDashboardPr
     try {
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
-      const contract = new ethers.Contract(PARAMIFY_ADDRESS, PARAMIFY_ABI, signer);
+      
+      // Get network and contract addresses
+      const network = await provider.getNetwork();
+      const contractAddresses = getContractAddresses(Number(network.chainId));
+      const contract = new ethers.Contract(contractAddresses.paramify, PARAMIFY_ABI, signer);
       
       const coverage = ethers.parseEther(policyAmount.toString());
       const calculatedPremium = ethers.parseEther((0.1 * policyAmount).toString());
@@ -231,13 +244,17 @@ export default function InsuracleDashboard({ setUserType }: InsuracleDashboardPr
     try {
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
-      const contract = new ethers.Contract(PARAMIFY_ADDRESS, PARAMIFY_ABI, signer);
+      
+      // Get network and contract addresses
+      const network = await provider.getNetwork();
+      const contractAddresses = getContractAddresses(Number(network.chainId));
+      const contract = new ethers.Contract(contractAddresses.paramify, PARAMIFY_ABI, signer);
       
       // Check if conditions are met for payout
       const currentFlood = await contract.getLatestPrice();
-      const floodLevelValue = Number(currentFlood) / 1e8;
+      const currentThreshold = await contract.floodThreshold();
       
-      if (floodLevelValue < 3000) {
+      if (Number(currentFlood) < Number(currentThreshold)) {
         setTransactionStatus('Payout conditions not met. Flood level must exceed threshold.');
         setIsLoading(false);
         setTimeout(() => setTransactionStatus(''), 5000);
@@ -332,7 +349,7 @@ export default function InsuracleDashboard({ setUserType }: InsuracleDashboardPr
                 <AlertCircle className="h-5 w-5 text-red-400 mr-3" />
                 <div>
                   <p className="text-red-200 font-semibold">Wrong Network</p>
-                  <p className="text-red-300 text-sm">Please connect to Hardhat network (localhost:8545, Chain ID: 31337)</p>
+                  <p className="text-red-300 text-sm">Please connect to PolkaVM Local network (Chain ID: 420420420)</p>
                 </div>
               </div>
             </div>

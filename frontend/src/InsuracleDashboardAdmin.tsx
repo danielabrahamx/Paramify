@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
 import { Waves, Shield, TrendingUp, Wallet, AlertCircle, CheckCircle, ArrowLeft, RefreshCw, Activity } from 'lucide-react';
-import { PARAMIFY_ADDRESS, PARAMIFY_ABI, MOCK_ORACLE_ADDRESS, MOCK_ORACLE_ABI } from './lib/contract';
+import { PARAMIFY_ABI, MOCK_ORACLE_ABI, getContractAddresses, PARAMIFY_ADDRESS } from './lib/contract';
 import { usgsApi, formatTimestamp, getTimeUntilNextUpdate, type ServiceStatus } from './lib/usgsApi';
 
 interface ParamifyDashboardProps {
@@ -30,6 +30,17 @@ export default function InsuracleDashboardAdmin({ setUserType }: ParamifyDashboa
   const [serviceStatus, setServiceStatus] = useState<ServiceStatus | null>(null);
   const [isBackendConnected, setIsBackendConnected] = useState(false);
   const [nextUpdateCountdown, setNextUpdateCountdown] = useState<string>('');
+
+  // Helper function to get contract addresses for current network
+  const getContracts = async (provider: ethers.BrowserProvider) => {
+    const network = await provider.getNetwork();
+    const contractAddresses = getContractAddresses(Number(network.chainId));
+    return {
+      paramify: new ethers.Contract(contractAddresses.paramify, PARAMIFY_ABI, provider),
+      mockOracle: new ethers.Contract(contractAddresses.mockOracle, MOCK_ORACLE_ABI, provider),
+      addresses: contractAddresses
+    };
+  };
 
   const handleConnectWallet = async () => {
     if (!window.ethereum) {
@@ -106,7 +117,9 @@ export default function InsuracleDashboardAdmin({ setUserType }: ParamifyDashboa
           const balance = await provider.getBalance(accounts[0]);
           setEthBalance(Number(ethers.formatEther(balance)));
           
-          const contract = new ethers.Contract(PARAMIFY_ADDRESS, PARAMIFY_ABI, provider);
+          // Get contract addresses for the current network
+          const contractAddresses = getContractAddresses(Number(network.chainId));
+          const contract = new ethers.Contract(contractAddresses.paramify, PARAMIFY_ABI, provider);
           try {
             const contractBal = await contract.getContractBalance();
             setContractBalance(Number(ethers.formatEther(contractBal)));
@@ -126,7 +139,7 @@ export default function InsuracleDashboardAdmin({ setUserType }: ParamifyDashboa
           }
         } catch (e) {
           console.error('Failed to connect to network:', e);
-          setTransactionStatus('Please connect to Hardhat Local network (Chain ID: 31337)');
+          setTransactionStatus('Please connect to PolkaVM Local network (Chain ID: 420420420)');
         }
       }
     };
@@ -139,8 +152,10 @@ export default function InsuracleDashboardAdmin({ setUserType }: ParamifyDashboa
         try {
           await switchToLocalNetwork();
           const provider = new ethers.BrowserProvider(window.ethereum);
+          const network = await provider.getNetwork();
+          const contractAddresses = getContractAddresses(Number(network.chainId));
           const accounts = await provider.send('eth_requestAccounts', []);
-          const contract = new ethers.Contract(PARAMIFY_ADDRESS, PARAMIFY_ABI, provider);
+          const contract = new ethers.Contract(contractAddresses.paramify, PARAMIFY_ABI, provider);
           // Assume contract has a public 'hasRole' method and ADMIN_ROLE constant
           const ADMIN_ROLE = ethers.id('ADMIN_ROLE');
           const isAdmin = await contract.hasRole(ADMIN_ROLE, accounts[0]);
@@ -279,8 +294,10 @@ export default function InsuracleDashboardAdmin({ setUserType }: ParamifyDashboa
     setTransactionStatus('Processing insurance purchase...');
     try {
       const provider = new ethers.BrowserProvider(window.ethereum);
+      const network = await provider.getNetwork();
+      const contractAddresses = getContractAddresses(Number(network.chainId));
       const signer = await provider.getSigner();
-      const contract = new ethers.Contract(PARAMIFY_ADDRESS, PARAMIFY_ABI, signer);
+      const contract = new ethers.Contract(contractAddresses.paramify, PARAMIFY_ABI, signer);
       const coverage = ethers.parseEther(coverageAmount);
       const calculatedPremium = ethers.parseEther(premium.toString());
       const tx = await contract.buyInsurance(coverage, { value: calculatedPremium });
@@ -311,28 +328,32 @@ export default function InsuracleDashboardAdmin({ setUserType }: ParamifyDashboa
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
       
-      // Check network
+      // Check network - support PolkaVM local node
       const network = await provider.getNetwork();
-      if (network.chainId !== 31337n) {
-        throw new Error('Please switch to Hardhat Local network (Chain ID: 31337)');
+      if (network.chainId !== 420420420n && network.chainId !== 31337n) {
+        throw new Error('Please switch to local network (Chain ID: 420420420 for PolkaVM)');
       }
       
+      // Get the correct contract address for the current network
+      const contractAddresses = getContractAddresses(Number(network.chainId));
+      const paramifyAddress = contractAddresses.paramify;
+      
       // Check if the contract exists at the address
-      const code = await provider.getCode(PARAMIFY_ADDRESS);
+      const code = await provider.getCode(paramifyAddress);
       if (code === '0x') {
         throw new Error('Contract not found at address. Please ensure the contract is deployed.');
       }
       
       // Estimate gas first
       const gasEstimate = await provider.estimateGas({
-        to: PARAMIFY_ADDRESS,
+        to: paramifyAddress,
         value: ethers.parseEther(fundAmount),
         from: await signer.getAddress()
       });
       
       // Send transaction with estimated gas
       const tx = await signer.sendTransaction({ 
-        to: PARAMIFY_ADDRESS, 
+        to: paramifyAddress, 
         value: ethers.parseEther(fundAmount),
         gasLimit: gasEstimate * 120n / 100n // Add 20% buffer
       });
@@ -340,7 +361,7 @@ export default function InsuracleDashboardAdmin({ setUserType }: ParamifyDashboa
       await tx.wait();
       setTransactionStatus('Contract funded successfully!');
       
-      const contract = new ethers.Contract(PARAMIFY_ADDRESS, PARAMIFY_ABI, provider);
+      const contract = new ethers.Contract(paramifyAddress, PARAMIFY_ABI, provider);
       const contractBal = await contract.getContractBalance();
       setContractBalance(Number(ethers.formatEther(contractBal)));
       const balance = await provider.getBalance(walletAddress);
@@ -356,7 +377,7 @@ export default function InsuracleDashboardAdmin({ setUserType }: ParamifyDashboa
       } else if (e.code === 'CALL_EXCEPTION') {
         errorMessage = 'Transaction failed - contract may not be deployed or network issue';
       } else if (e.code === 'UNKNOWN_ERROR' && e.message?.includes('404')) {
-        errorMessage = 'Network connection failed. Please ensure you are connected to Hardhat Local network';
+        errorMessage = 'Network connection failed. Please ensure you are connected to PolkaVM Local network';
       }
       setTransactionStatus(`Funding failed! ${errorMessage}`);
     }
@@ -370,8 +391,10 @@ export default function InsuracleDashboardAdmin({ setUserType }: ParamifyDashboa
     setTransactionStatus('Triggering payout...');
     try {
       const provider = new ethers.BrowserProvider(window.ethereum);
+      const network = await provider.getNetwork();
+      const contractAddresses = getContractAddresses(Number(network.chainId));
       const signer = await provider.getSigner();
-      const contract = new ethers.Contract(PARAMIFY_ADDRESS, PARAMIFY_ABI, signer);
+      const contract = new ethers.Contract(contractAddresses.paramify, PARAMIFY_ABI, signer);
       const tx = await contract.triggerPayout();
       await tx.wait();
       setTransactionStatus('Payout triggered successfully!');
@@ -405,8 +428,8 @@ export default function InsuracleDashboardAdmin({ setUserType }: ParamifyDashboa
       await window.ethereum.request({
         method: 'wallet_addEthereumChain',
         params: [{
-          chainId: '0x7a69', // 31337 in hex
-          chainName: 'Hardhat Local',
+          chainId: '0x190F1B44', // 420420420 in hex
+          chainName: 'PolkaVM Local',
           nativeCurrency: {
             name: 'ETH',
             symbol: 'ETH',
@@ -429,9 +452,9 @@ export default function InsuracleDashboardAdmin({ setUserType }: ParamifyDashboa
     try {
       await window.ethereum.request({
         method: 'wallet_switchEthereumChain',
-        params: [{ chainId: '0x7a69' }]
+        params: [{ chainId: '0x190F1B44' }] // 420420420 in hex
       });
-    } catch (error) {
+    } catch (error: any) {
       if (error.code === 4902) {
         // Network not added yet, add it
         await addLocalNetwork();
@@ -536,7 +559,7 @@ export default function InsuracleDashboardAdmin({ setUserType }: ParamifyDashboa
                 onClick={switchToLocalNetwork}
                 className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm transition-all duration-200"
               >
-                Connect to Hardhat Local
+                Connect to PolkaVM Local
               </button>
             </div>
           </div>
@@ -638,161 +661,115 @@ export default function InsuracleDashboardAdmin({ setUserType }: ParamifyDashboa
                 </div>
                 <button
                   onClick={handleManualUSGSUpdate}
-                  disabled={!isBackendConnected}
-                  className="flex items-center space-x-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-500 disabled:cursor-not-allowed text-white px-3 py-1 rounded-lg text-sm transition-all duration-200"
+                  className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs transition-all duration-200"
                 >
-                  <RefreshCw className="h-4 w-4" />
-                  <span>Manual Update</span>
+                  <RefreshCw className="h-3 w-3 inline mr-1" />
+                  Manual Update
                 </button>
               </div>
               
               {serviceStatus && (
                 <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-black/30 rounded-lg p-3">
-                      <p className="text-gray-400 text-xs mb-1">USGS Water Level</p>
-                      <p className="text-white font-bold">{serviceStatus.currentFloodLevel?.toFixed(2) || 'N/A'} ft</p>
-                      <p className="text-gray-400 text-xs mt-1">= {((serviceStatus.currentFloodLevel || 0) * 100000000000).toFixed(0)} units</p>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="text-gray-400">Data Source:</span>
+                      <span className="text-white ml-2">{serviceStatus.dataSource}</span>
                     </div>
-                    <div className="bg-black/30 rounded-lg p-3">
-                      <p className="text-gray-400 text-xs mb-1">Next Update In</p>
-                      <p className="text-white font-bold">{nextUpdateCountdown}</p>
-                      <p className="text-gray-400 text-xs mt-1">Every 5 minutes</p>
+                    <div>
+                      <span className="text-gray-400">Site:</span>
+                      <span className="text-white ml-2">{serviceStatus.site.name}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-400">Current Level:</span>
+                      <span className="text-blue-300 ml-2 font-bold">
+                        {serviceStatus.currentFloodLevel?.toFixed(2) || 'N/A'} ft
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-gray-400">Oracle Value:</span>
+                      <span className="text-purple-300 ml-2 font-mono">
+                        {serviceStatus.oracleValue?.toFixed(0) || 'N/A'}
+                      </span>
                     </div>
                   </div>
                   
-                  <div className="bg-black/30 rounded-lg p-3">
-                    <p className="text-gray-400 text-xs mb-1">Data Source</p>
-                    <p className="text-white text-sm font-medium">{serviceStatus.site.name}</p>
-                    <p className="text-gray-400 text-xs">Site ID: {serviceStatus.site.siteId}</p>
+                  <div className="border-t border-white/10 pt-3">
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-gray-400">Update Interval:</span>
+                      <span className="text-white">{serviceStatus.updateInterval}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm mt-1">
+                      <span className="text-gray-400">Last Update:</span>
+                      <span className="text-white">
+                        {serviceStatus.lastUpdate ? formatTimestamp(serviceStatus.lastUpdate) : 'Never'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm mt-1">
+                      <span className="text-gray-400">Next Update:</span>
+                      <span className="text-green-300 font-mono">
+                        {nextUpdateCountdown || 'Calculating...'}
+                      </span>
+                    </div>
                   </div>
                   
-                  <div className="bg-black/30 rounded-lg p-3">
-                    <p className="text-gray-400 text-xs mb-1">Last Updated</p>
-                    <p className="text-white text-sm">{formatTimestamp(serviceStatus.lastUpdate)}</p>
-                  </div>
-                </div>
-              )}
-              
-              {!isBackendConnected && (
-                <div className="mt-4 bg-yellow-500/20 border border-yellow-400/30 rounded-lg p-3">
-                  <p className="text-yellow-200 text-sm">
-                    ⚠️ USGS service not running. Start the backend server to enable automatic updates.
-                  </p>
-                  <p className="text-yellow-200/70 text-xs mt-1">
-                    Run: cd backend && npm start
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="mb-8">
-            <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
-              <Shield className="mr-2 h-5 w-5 text-purple-300" />
-              Insurance Policy
-            </h3>
-            <div className="space-y-4">
-              {hasActivePolicy ? (
-                <div className="bg-green-500/20 border border-green-400/30 rounded-lg p-6">
-                  <h4 className="text-green-200 font-semibold text-lg mb-4">✓ Active Insurance Policy</h4>
-                  <div className="space-y-2">
-                    <p className="text-white"><span className="text-green-300">Coverage:</span> {insuranceAmount.toFixed(1)} ETH</p>
-                    <p className="text-white"><span className="text-green-300">Status:</span> Active</p>
-                    {floodLevel >= threshold && (
-                      <div className="mt-4">
-                        <button
-                          onClick={handleTriggerPayout}
-                          disabled={isLoading}
-                          className="w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 disabled:from-gray-500 disabled:to-gray-600 text-white font-bold py-3 px-6 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.02] disabled:transform-none"
-                        >
-                          {isLoading ? (
-                            <div className="flex items-center justify-center">
-                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                              Triggering...
-                            </div>
-                          ) : (
-                            '🚨 Trigger Emergency Payout'
-                          )}
-                        </button>
-                        <p className="text-red-300 text-sm mt-2">⚠️ Flood threshold exceeded - payout available</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <div className="bg-yellow-500/20 border border-yellow-400/30 rounded-lg p-4">
-                  <p className="text-yellow-200 font-medium">No active policy</p>
-                </div>
-              )}
-              
-              {!hasActivePolicy && (
-                <div className="bg-black/20 rounded-lg p-4">
-                  <div className="space-y-3">
-                    <input
-                      type="number"
-                      value={coverageAmount}
-                      onChange={(e) => handleCoverageChange(e.target.value)}
-                      className="w-full bg-black/30 border border-white/20 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                      placeholder="Coverage amount (ETH)"
-                    />
-                    <div className="bg-black/30 rounded-lg p-3">
-                      <p className="text-gray-300">Premium: <span className="text-white font-bold">{premium.toFixed(1)} ETH</span></p>
-                    </div>
-                    <button
-                      onClick={handleBuyInsurance}
-                      disabled={isLoading || !coverageAmount || parseFloat(coverageAmount) <= 0}
-                      className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 disabled:from-gray-500 disabled:to-gray-600 text-white font-bold py-3 px-6 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.02] disabled:transform-none"
-                    >
-                      {isLoading ? (
-                        <div className="flex items-center justify-center">
-                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                          Processing...
+                  {serviceStatus.threshold && (
+                    <div className="bg-black/30 rounded-lg p-3 mt-3">
+                      <div className="text-xs text-gray-400 mb-2">Threshold Configuration</div>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <span className="text-gray-400">Threshold:</span>
+                          <span className="text-yellow-300 ml-2 font-bold">
+                            {serviceStatus.threshold.thresholdFeet} ft
+                          </span>
                         </div>
-                      ) : (
-                        <>
-                          <Shield className="inline mr-2 h-5 w-5" />
-                          Buy Insurance
-                        </>
-                      )}
-                    </button>
-                  </div>
+                        <div>
+                          <span className="text-gray-400">Units:</span>
+                          <span className="text-yellow-300 ml-2 font-mono">
+                            {serviceStatus.threshold.thresholdUnits}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
           </div>
 
- 
-          <div className="mb-8">
-            <h3 className="text-xl font-semibold text-white mb-4">Contract Info</h3>
-            <div className="grid grid-cols-2 gap-4 mb-4">
-              <div className="bg-black/20 rounded-lg p-4">
-                <p className="text-gray-300 text-sm">Insurance Amount</p>
-                <p className="text-white font-bold text-lg">{insuranceAmount} units</p>
-              </div>
-              <div className="bg-black/20 rounded-lg p-4">
-                <p className="text-gray-300 text-sm">Contract Balance</p>
-                <p className="text-white font-bold text-lg">{contractBalance.toFixed(1)} ETH</p>
-              </div>
-            </div>
-          </div>
-
-   
+          {/* Contract Management */}
           {isAdmin && (
-            <>
-              <div className="bg-black/20 rounded-lg p-4 mb-8">
+            <div className="mb-8">
+              <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
+                <Shield className="mr-2 h-5 w-5 text-yellow-300" />
+                Contract Management
+              </h3>
+              <div className="bg-black/20 rounded-lg p-4">
+                <div className="mb-4">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-gray-300">Contract Balance</span>
+                    <span className="text-white font-bold">{contractBalance.toFixed(3)} ETH</span>
+                  </div>
+                  <div className="w-full bg-gray-700 rounded-full h-2">
+                    <div 
+                      className="bg-gradient-to-r from-green-500 to-blue-500 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${Math.min((contractBalance / 100) * 100, 100)}%` }}
+                    ></div>
+                  </div>
+                </div>
+                
                 <div className="space-y-3">
                   <input
                     type="number"
                     value={fundAmount}
                     onChange={(e) => setFundAmount(e.target.value)}
-                    className="w-full bg-black/30 border border-white/20 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
-                    placeholder="Fund amount (ETH)"
+                    className="w-full bg-black/30 border border-white/20 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Amount to fund (ETH)"
+                    step="0.1"
                   />
                   <button
                     onClick={handleFundContract}
-                    disabled={isFunding || !fundAmount || parseFloat(fundAmount) <= 0}
-                    className="w-full bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700 disabled:from-gray-500 disabled:to-gray-600 text-white font-bold py-3 px-6 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.02] disabled:transform-none"
+                    disabled={isFunding || !fundAmount}
+                    className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-500 disabled:to-gray-600 text-white font-bold py-3 px-6 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.02] disabled:transform-none"
                   >
                     {isFunding ? (
                       <div className="flex items-center justify-center">
@@ -805,52 +782,50 @@ export default function InsuracleDashboardAdmin({ setUserType }: ParamifyDashboa
                   </button>
                 </div>
               </div>
-            </>
+            </div>
           )}
 
-          {/* Always show roles section */}
-          <div className="mb-8">
-            <h3 className="text-xl font-semibold text-white mb-4">Roles</h3>
-            <div className="space-y-3">
-              {roleStatuses.map((role, index) => (
-                <div key={index} className="flex justify-between items-center bg-black/20 rounded-lg p-4">
-                  <span className="text-white font-medium">{role.name}</span>
-                  <span className={`font-semibold ${role.status ? 'text-green-400' : 'text-red-400'}`}>
-                    {role.status ? 'Yes' : 'No'}
-                  </span>
+          {/* Admin Role Status */}
+          {isAdmin && (
+            <div className="mb-8">
+              <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
+                <CheckCircle className="mr-2 h-5 w-5 text-green-300" />
+                Admin Permissions
+              </h3>
+              <div className="bg-black/20 rounded-lg p-4">
+                <div className="space-y-3">
+                  {roleStatuses.map((role, index) => (
+                    <div key={index} className="flex items-center justify-between">
+                      <span className="text-gray-300">{role.name}</span>
+                      <div className="flex items-center space-x-2">
+                        {role.status ? (
+                          <CheckCircle className="h-4 w-4 text-green-400" />
+                        ) : (
+                          <AlertCircle className="h-4 w-4 text-red-400" />
+                        )}
+                        <span className={role.status ? "text-green-300" : "text-red-300"}>
+                          {role.status ? "Granted" : "Denied"}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </div>
-
-    
-          {transactionStatus && (
-            <div className="mt-6">
-              <div className={`flex items-center p-4 rounded-lg ${
-                transactionStatus.includes('successfully') 
-                  ? 'bg-green-500/20 border border-green-400/30' 
-                  : 'bg-blue-500/20 border border-blue-400/30'
-              }`}>
-                {transactionStatus.includes('successfully') ? (
-                  <CheckCircle className="h-5 w-5 text-green-400 mr-3" />
-                ) : (
-                  <AlertCircle className="h-5 w-5 text-blue-400 mr-3" />
-                )}
-                <span className={`font-medium ${
-                  transactionStatus.includes('successfully') ? 'text-green-200' : 'text-blue-200'
-                }`}>
-                  {transactionStatus}
-                </span>
               </div>
             </div>
           )}
-        </div>
 
-
-        <div className="text-center mt-8">
-          <p className="text-gray-400 text-sm">
-            Powered by blockchain technology and smart contracts
-          </p>
+          {/* Transaction Status */}
+          {transactionStatus && (
+            <div className={`p-4 rounded-lg mb-4 ${
+              transactionStatus.includes('success') || transactionStatus.includes('Success') || transactionStatus.includes('✅')
+                ? 'bg-green-500/20 border border-green-400/30 text-green-300'
+                : transactionStatus.includes('fail') || transactionStatus.includes('error') || transactionStatus.includes('Error') || transactionStatus.includes('❌')
+                ? 'bg-red-500/20 border border-red-400/30 text-red-300'
+                : 'bg-blue-500/20 border border-blue-400/30 text-blue-300'
+            }`}>
+              {transactionStatus}
+            </div>
+          )}
         </div>
       </div>
     </div>
