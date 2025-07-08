@@ -1,0 +1,77 @@
+version: '3.8'
+
+services:
+  hardhat:
+    build:
+      context: .
+      dockerfile: Dockerfile.hardhat
+    ports:
+      - "8545:8545"
+    volumes:
+      - ./contracts:/app/contracts
+      - ./scripts:/app/scripts
+      - hardhat-data:/app/.hardhat
+    networks:
+      - paramify-network
+
+  deploy:
+    build:
+      context: .
+      dockerfile: Dockerfile.deploy
+    depends_on:
+      - hardhat
+    environment:
+      - HARDHAT_NETWORK=localhost
+      - RPC_URL=http://hardhat:8545
+    volumes:
+      - ./contracts:/app/contracts
+      - ./scripts:/app/scripts
+      - ./backend/.env:/app/backend/.env
+      - ./frontend/.env.local:/app/frontend/.env.local
+      - ./frontend/src/lib/contract.ts:/app/frontend/src/lib/contract.ts
+    networks:
+      - paramify-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    depends_on:
+      - deploy
+    environment:
+      - NODE_ENV=development
+      - RPC_URL=http://hardhat:8545
+    env_file:
+      - ./backend/.env
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    networks:
+      - paramify-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    environment:
+      - NODE_ENV=development
+    env_file:
+      - ./frontend/.env.local
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - paramify-network
+
+networks:
+  paramify-network:
+    driver: bridge
+
+volumes:
+  hardhat-data:
