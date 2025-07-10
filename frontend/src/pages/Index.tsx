@@ -4,8 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Wallet, Building2, Shield, Waves, TrendingUp, Users, Menu, Home, Info, Mail } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import InsuracleDashboard from '@/InsuracleDashboard'; 
-import InsuracleDashboardAdmin from '@/InsuracleDashboardAdmin'; 
+import InsuracleDashboard from '../InsuracleDashboard'; 
+import InsuracleDashboardAdmin from '../InsuracleDashboardAdmin'; 
 import {
   Menubar,
   MenubarContent,
