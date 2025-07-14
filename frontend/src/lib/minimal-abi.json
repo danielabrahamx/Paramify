@@ -33,5 +33,25 @@
     "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
     "stateMutability": "view",
     "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "uint256", "name": "_coverage", "type": "uint256" }],
+    "name": "buyInsurance",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "address", "name": "", "type": "address" }],
+    "name": "policies",
+    "outputs": [
+      { "internalType": "address", "name": "customer", "type": "address" },
+      { "internalType": "uint256", "name": "premium", "type": "uint256" },
+      { "internalType": "uint256", "name": "coverage", "type": "uint256" },
+      { "internalType": "bool", "name": "active", "type": "bool" },
+      { "internalType": "bool", "name": "paidOut", "type": "bool" }
+    ],
+    "stateMutability": "view",
+    "type": "function"
   }
 ]

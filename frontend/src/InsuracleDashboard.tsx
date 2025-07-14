@@ -249,32 +249,8 @@ export default function InsuracleDashboard({ setUserType }: InsuracleDashboardPr
       const network = await provider.getNetwork();
       const contractAddresses = getContractAddresses(Number(network.chainId));
       
-      // Use minimal ABI that only includes the functions we need
-      const minimalAbi = [
-        {
-          "inputs": [],
-          "name": "getLatestPrice",
-          "outputs": [{ "internalType": "int256", "name": "", "type": "int256" }],
-          "stateMutability": "view",
-          "type": "function"
-        },
-        {
-          "inputs": [],
-          "name": "floodThreshold",
-          "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
-          "stateMutability": "view",
-          "type": "function"
-        },
-        {
-          "inputs": [],
-          "name": "triggerPayout",
-          "outputs": [],
-          "stateMutability": "nonpayable",
-          "type": "function"
-        }
-      ];
-      
-      const contract = new ethers.Contract(contractAddresses.paramify, minimalAbi, signer);
+      // Use the imported PARAMIFY_ABI instead of defining a minimal ABI locally
+      const contract = new ethers.Contract(contractAddresses.paramify, PARAMIFY_ABI, signer);
       
       // Check if conditions are met for payout
       const currentFlood = await contract.getLatestPrice();
