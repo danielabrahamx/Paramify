@@ -70,7 +70,7 @@ PARAMIFY_ADDRESS=${paramifyAddress}
 MOCK_ORACLE_ADDRESS=${oracleAddress}
 PORT=3001
 RPC_URL=http://127.0.0.1:8545
-PRIVATE_KEY=0x5fb92d6e98884f76de468fa3f6278f8807c48bebc13595d45af5bdc4da702133`;
+PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80`;
     fs.writeFileSync('./backend/.env', backendEnv);
     console.log("✅ Updated backend/.env");
 
@@ -85,7 +85,37 @@ VITE_BACKEND_URL=http://localhost:3001`;
     const contractTs = `// Auto-generated contract addresses
 export const PARAMIFY_CONTRACT_ADDRESS = "${paramifyAddress}";
 export const MOCK_AGGREGATOR_ADDRESS = "${oracleAddress}";
-export const BACKEND_URL = "http://localhost:3001";`;
+export const BACKEND_URL = "http://localhost:3001";
+
+// For backward compatibility
+export const PARAMIFY_ADDRESS = PARAMIFY_CONTRACT_ADDRESS;
+export const MOCK_ORACLE_ADDRESS = MOCK_AGGREGATOR_ADDRESS;
+
+// Import ABIs directly as arrays
+import paramifyAbiJson from './minimal-abi.json';
+import mockOracleAbiJson from '../../../mock-aggregator-abi.json';
+
+// Export ABIs as arrays (explicitly cast to ensure they're iterable)
+export const PARAMIFY_ABI = paramifyAbiJson as any[];
+export const MOCK_ORACLE_ABI = mockOracleAbiJson as any[];
+
+// Helper function to detect PolkaVM network
+export function isPolkaVMNetwork() {
+  // Check if the chain ID is one of the PolkaVM networks
+  // Chain ID 420420420 for local PolkaVM, 420420422 for Passet Hub
+  return window.ethereum && (
+    window.ethereum.chainId === '0x19064a14' || // 420420420 in hex
+    window.ethereum.chainId === '0x19064a16'     // 420420422 in hex
+  );
+}
+
+// Helper function to get contract addresses
+export function getContractAddresses() {
+  return {
+    paramify: PARAMIFY_CONTRACT_ADDRESS,
+    oracle: MOCK_AGGREGATOR_ADDRESS
+  };
+}`;
     fs.writeFileSync('./frontend/src/lib/contract.ts', contractTs);
     console.log("✅ Updated frontend/src/lib/contract.ts");
 

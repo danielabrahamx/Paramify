@@ -32,5 +32,3 @@ export function getContractAddresses() {
     oracle: MOCK_AGGREGATOR_ADDRESS
   };
 }
-
-// Add any other contract-related functions here that the frontend might need
