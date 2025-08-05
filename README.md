@@ -72,21 +72,12 @@ In the app’s Admin dashboard, use the “Connect to PassetHub Testnet” butto
 - Chain ID: 420420422 (0x190f1b46)
 - Currency Symbol: ETH
 
-6) Explorer links (replace with official explorer if available)
-- Contract: 0x8ac041884E37281b6649326bBD9Fb210A5849a91
-  - Example path: /address/0x8ac041884E37281b6649326bBD9Fb210A5849a91
-- Mock Oracle: 0x8D6Bfc2169154911F83aFc6B5A4Ff7f86Ed205a6
-- Admin wallet: 0x00f2Ef6EB91C2732ca51EAb96cfA92Cd410AC4dF
-If the official PassetHub explorer URL differs, use MetaMask “View on Explorer” after adding the network, or paste tx hashes/addresses into the explorer you confirm.
 
 Usage notes
 - Admin gating: The UI checks DEFAULT_ADMIN_ROLE on the Paramify contract and shows admin functions only to the admin.
 - Funding: You can fund the contract directly from the Admin dashboard. Contract balance is read on‑chain via provider.getBalance(address).
 - Buying insurance: Premium is 10% of the requested coverage. The app computes and sends the exact wei value to satisfy require(msg.value >= coverage/10).
 
-Optional: Local Hardhat section (developers)
-- The repo includes Hardhat setup and PolkaVM config in [`JavaScript.hardhat.config.js`](hardhat.config.js:1).
-- You can run tests or local deployments if needed, but the primary flow is PassetHub Testnet.
 
 Troubleshooting (brief)
 - Internal JSON‑RPC errors (-32603): Remove explicit EIP‑1559 fields and let the node estimate; legacy gasPrice/gas may be required.
@@ -101,3 +92,4 @@ Repository hygiene
   - [`TypeScript.frontend/src/InsuracleDashboardAdmin.tsx`](frontend/src/InsuracleDashboardAdmin.tsx:1)
 - Customer dashboard:
   - [`TypeScript.frontend/src/InsuracleDashboard.tsx`](frontend/src/InsuracleDashboard.tsx:1)
+
