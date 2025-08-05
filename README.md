@@ -1,58 +1,103 @@
-# Paramify: PolkaVM on PassetHub (Testnet) — Plain-English Quickstart
+# Paramify on PassetHub Testnet — Cross‑Platform Quickstart
 
-This page is for non-technical users. It shows the simplest way to run Paramify using Docker only.
+This README documents a simple, non‑Docker workflow for Windows (WSL), macOS, and Linux.
 
-What you will get
-- Contracts deployed to the Passet Hub Testnet (a public practice network)
-- The app’s config files auto-filled with the real contract addresses
-- Backend (API) and Frontend (website) running locally
+What you’ll do
+- Compile contracts for PolkaVM using resolc
+- Deploy to PassetHub Testnet via Hardhat Ignition
+- Auto‑propagate deployed addresses into frontend and backend env files
+- Start backend and frontend locally
+- Connect MetaMask and use explorer links
 
-Before you start (one-time)
-1) Install and open Docker Desktop
-2) Get a test wallet private key with a small amount of test ETH on Passet Hub (from the faucet)
+Prerequisites
+- Node 18+ and npm
+- Git
+- MetaMask installed in your browser
+- A PassetHub Testnet account with test ETH
+- OS notes:
+  - Windows: use WSL (Ubuntu) terminal for all commands
+  - macOS: use Terminal/Zsh
+  - Linux: use your distro shell
 
-Step 1 — Put your key in one place
-- Open the file named `.env.deployment`
-- Paste your key after: `DEPLOYER_PRIVATE_KEY=0x...`
-- Save the file
+Network details (PassetHub Testnet)
+- RPC: https://testnet-passet-hub-eth-rpc.polkadot.io
+- Chain ID: 420420422 (hex: 0x190f1b46)
+- Currency: ETH
 
-Step 2 — Deploy the contracts (does everything for you)
-Run this command from the project folder:
+1) Configure environment
+- Copy or edit the root .env and ensure the following are set (examples):
+  - RPC_URL=https://testnet-passet-hub-eth-rpc.polkadot.io
+  - DEPLOYER_PRIVATE_KEY=0x<your-testnet-private-key>
+- Ensure frontend/.env.local and backend/.env will be auto‑written by the post‑deploy script. You can also set:
+  - VITE_PARAMIFY_CONTRACT_ADDRESS, VITE_MOCK_AGGREGATOR_ADDRESS (frontend)
+  - PARAMIFY_ADDRESS, MOCK_ORACLE_ADDRESS (backend)
+
+2) Compile for PolkaVM
+Run from the project root:
 ```
-docker compose up --build deployer
+npm run resolc:compile
 ```
-It will:
-- Check your key and the network
-- Deploy the contracts to Passet Hub
-- Write the new addresses into:
-  - `frontend/.env.local`
-  - `backend/.env`
+This uses [`TypeScript.scripts/compile-with-resolc.ts()`](scripts/compile-with-resolc.ts:1) to generate Hardhat‑compatible artifacts for PolkaVM.
 
-If you see a compiler (“resolc”) message
-- We pin the compiler tag inside [`hardhat.config.js`](hardhat.config.js:1)
-- If the network updates, we will adjust the tag. You can just run the step again later.
-
-Step 3 — Start the app
-Run:
+3) Deploy with Hardhat Ignition
+Deploy to PassetHub Testnet:
 ```
-docker compose up --build
+npm run polkavm:deploy:passethub
 ```
-Open the printed URL (usually http://localhost:5173). The app is now talking to Passet Hub.
+- Uses [`JavaScript.ignition/modules/Paramify.js()`](ignition/modules/Paramify.js:1)
+- Writes deployed addresses into:
+  - [`frontend/.env.local`](frontend/.env.local)
+  - [`backend/.env`](backend/.env)
+- If the RPC adapter requires legacy gas fields, the Hardhat config is already set to provide them.
 
-How to confirm in your wallet (MetaMask)
-- Switch to “Passet Hub Testnet”
-  - RPC: https://testnet-passet-hub-eth-rpc.polkadot.io
-  - Chain ID: 420420422
-  - Currency: ETH
-- Your wallet will show transactions on that test network
+4) Start services
+Backend:
+```
+cd backend
+npm install
+npm start
+```
+Frontend:
+```
+cd frontend
+npm install
+npm run dev
+```
+Open the printed URL (typically http://localhost:5173).
 
-Troubleshooting in simple terms
-- “Need more ETH”: use the Passet Hub faucet
-- “Missing key”: make sure `.env.deployment` has `DEPLOYER_PRIVATE_KEY=0x...`
-- “Compiler/resolc error”: try again later; we keep the compiler version pinned in config
+5) Connect MetaMask to PassetHub Testnet
+In the app’s Admin dashboard, use the “Connect to PassetHub Testnet” button (wallet_addEthereumChain). If you need to add manually:
+- Network Name: PassetHub Testnet
+- RPC URL: https://testnet-passet-hub-eth-rpc.polkadot.io
+- Chain ID: 420420422 (0x190f1b46)
+- Currency Symbol: ETH
 
-Extra info for developers (optional)
-- Non-interactive deployer uses Hardhat Ignition in [`scripts.deployer-entry.sh()`](scripts/deployer-entry.sh:1)
-- After deploy, addresses are written by [`scripts.update-env-from-ignition.js()`](scripts/update-env-from-ignition.js:1)
-- Pre-checks live in [`scripts.predeploy-checks.js()`](scripts/predeploy-checks.js:1)
-- Quick smoke test (if you installed Node): `npm run polkavm:e2e`
+6) Explorer links (replace with official explorer if available)
+- Contract: 0x8ac041884E37281b6649326bBD9Fb210A5849a91
+  - Example path: /address/0x8ac041884E37281b6649326bBD9Fb210A5849a91
+- Mock Oracle: 0x8D6Bfc2169154911F83aFc6B5A4Ff7f86Ed205a6
+- Admin wallet: 0x00f2Ef6EB91C2732ca51EAb96cfA92Cd410AC4dF
+If the official PassetHub explorer URL differs, use MetaMask “View on Explorer” after adding the network, or paste tx hashes/addresses into the explorer you confirm.
+
+Usage notes
+- Admin gating: The UI checks DEFAULT_ADMIN_ROLE on the Paramify contract and shows admin functions only to the admin.
+- Funding: You can fund the contract directly from the Admin dashboard. Contract balance is read on‑chain via provider.getBalance(address).
+- Buying insurance: Premium is 10% of the requested coverage. The app computes and sends the exact wei value to satisfy require(msg.value >= coverage/10).
+
+Optional: Local Hardhat section (developers)
+- The repo includes Hardhat setup and PolkaVM config in [`JavaScript.hardhat.config.js`](hardhat.config.js:1).
+- You can run tests or local deployments if needed, but the primary flow is PassetHub Testnet.
+
+Troubleshooting (brief)
+- Internal JSON‑RPC errors (-32603): Remove explicit EIP‑1559 fields and let the node estimate; legacy gasPrice/gas may be required.
+- EstimateGas reverts on buyInsurance: Ensure premium in wei is >= coverage/10; avoid float rounding issues.
+- Esbuild permission denied: On Linux, make the binary executable (node_modules/@esbuild/<platform>/bin/esbuild).
+
+Repository hygiene
+- Deployment scripts and helpers:
+  - [`JavaScript.scripts/predeploy-checks.js`](scripts/predeploy-checks.js:1)
+  - [`JavaScript.scripts/update-env-from-ignition.js`](scripts/update-env-from-ignition.js:1)
+- Frontend admin dashboard:
+  - [`TypeScript.frontend/src/InsuracleDashboardAdmin.tsx`](frontend/src/InsuracleDashboardAdmin.tsx:1)
+- Customer dashboard:
+  - [`TypeScript.frontend/src/InsuracleDashboard.tsx`](frontend/src/InsuracleDashboard.tsx:1)
