@@ -56,7 +56,7 @@ export default function InsuracleDashboardAdmin({ setUserType }: ParamifyDashboa
         return;
       }
       setWalletAddress(accounts[0]);
-      const adminAddress = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'.toLowerCase();
+      const adminAddress = '0x00f2Ef6EB91C2732ca51EAb96cfA92Cd410AC4dF'.toLowerCase();
       if (accounts[0].toLowerCase() === adminAddress) {
         setIsAdmin(true);
         setTransactionStatus('');
@@ -83,7 +83,7 @@ export default function InsuracleDashboardAdmin({ setUserType }: ParamifyDashboa
           setWalletChecked(false);
         } else {
           setWalletAddress(accounts[0]);
-          const adminAddress = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'.toLowerCase();
+          const adminAddress = '0x00f2Ef6EB91C2732ca51EAb96cfA92Cd410AC4dF'.toLowerCase();
           if (accounts[0].toLowerCase() === adminAddress) {
             setIsAdmin(true);
             setTransactionStatus('');
@@ -121,8 +121,9 @@ export default function InsuracleDashboardAdmin({ setUserType }: ParamifyDashboa
           const contractAddresses = getContractAddresses();
           const contract = new ethers.Contract(contractAddresses.paramify, PARAMIFY_ABI, provider);
           try {
-            const contractBal = await contract.getContractBalance();
-            setContractBalance(Number(ethers.formatEther(contractBal)));
+            // Prefer reading balance directly from chain to avoid stale contract getter discrepancies
+            const rawBal = await provider.getBalance(contractAddresses.paramify);
+            setContractBalance(Number(ethers.formatEther(rawBal)));
             const latestFlood = await contract.getLatestPrice();
             setFloodLevel(Number(latestFlood));
             
@@ -157,7 +158,7 @@ export default function InsuracleDashboardAdmin({ setUserType }: ParamifyDashboa
           const accounts = await provider.send('eth_requestAccounts', []);
           const contract = new ethers.Contract(contractAddresses.paramify, PARAMIFY_ABI, provider);
           // Assume contract has a public 'hasRole' method and ADMIN_ROLE constant
-          const ADMIN_ROLE = ethers.id('ADMIN_ROLE');
+          const ADMIN_ROLE = ethers.id('DEFAULT_ADMIN_ROLE');
           const isAdmin = await contract.hasRole(ADMIN_ROLE, accounts[0]);
           setIsAdmin(isAdmin);
         } catch (e) {
@@ -319,6 +320,12 @@ export default function InsuracleDashboardAdmin({ setUserType }: ParamifyDashboa
 
   const handleFundContract = async () => {
     if (!window.ethereum || !fundAmount) return;
+    // Prevent accidental huge funding amounts on the testnet
+    const fundValue = parseFloat(fundAmount);
+    if (isNaN(fundValue) || fundValue <= 0) {
+      setTransactionStatus('Enter a valid funding amount.');
+      return;
+    }
     setIsFunding(true);
     setTransactionStatus('Funding contract...');
     try {
@@ -330,12 +337,7 @@ export default function InsuracleDashboardAdmin({ setUserType }: ParamifyDashboa
       
       // Check network - support PolkaVM local node
       const network = await provider.getNetwork();
-      // Align to RPC-reported chainId 0x190f1b46 (decimal 420420422? actual: 420420422 + 2 = 420420422? we trust RPC)
-      // Use the hex returned by eth_chainId: 0x190f1b46 = 420420422? We'll treat any mismatch as okay if wallet is on same RPC.
-      // Only warn if completely different from RPC when we fetch via provider
-      // Skip strict equality to avoid MetaMask rejection when RPC chainId shifts
       if (!network.chainId) {
-      // No hard-coded check; rely on provider and contract code existence instead
         throw new Error('Please switch to PassetHub Testnet (use the in-app button to add/switch)');
       }
       
@@ -343,32 +345,25 @@ export default function InsuracleDashboardAdmin({ setUserType }: ParamifyDashboa
       const contractAddresses = getContractAddresses();
       const paramifyAddress = contractAddresses.paramify;
       
-      // Check if the contract exists at the address
+      // Verify contract exists
       const code = await provider.getCode(paramifyAddress);
       if (code === '0x') {
         throw new Error('Contract not found at address. Please ensure the contract is deployed.');
       }
       
-      // Estimate gas first
-      const gasEstimate = await provider.estimateGas({
+      // Let the RPC/node estimate fees to avoid -32603 Internal JSON-RPC errors from unsupported fee fields
+      // Keep only minimal parameters for widest adapter compatibility
+      const tx = await signer.sendTransaction({
         to: paramifyAddress,
-        value: ethers.parseEther(fundAmount),
-        from: await signer.getAddress()
-      });
-      
-      // Send transaction with estimated gas
-      const tx = await signer.sendTransaction({ 
-        to: paramifyAddress, 
-        value: ethers.parseEther(fundAmount),
-        gasLimit: gasEstimate * 120n / 100n // Add 20% buffer
+        value: ethers.parseEther(fundAmount)
       });
       
       await tx.wait();
       setTransactionStatus('Contract funded successfully!');
       
-      const contract = new ethers.Contract(paramifyAddress, PARAMIFY_ABI, provider);
-      const contractBal = await contract.getContractBalance();
-      setContractBalance(Number(ethers.formatEther(contractBal)));
+      // Read balance directly from provider to ensure UI parity across views
+      const rawBalAfter = await provider.getBalance(paramifyAddress);
+      setContractBalance(Number(ethers.formatEther(rawBalAfter)));
       const balance = await provider.getBalance(walletAddress);
       setEthBalance(Number(ethers.formatEther(balance)));
       setFundAmount(""); // Clear the input after successful funding
@@ -379,6 +374,9 @@ export default function InsuracleDashboardAdmin({ setUserType }: ParamifyDashboa
         errorMessage = e.message;
       } else if (e.reason) {
         errorMessage = e.reason;
+      } else if (e.code === -32603) {
+        // Internal JSON-RPC error – likely node issue; advise user to retry or check node status
+        errorMessage = 'Internal RPC error. Please try again later or verify the PassetHub node is operational.';
       } else if (e.code === 'CALL_EXCEPTION') {
         errorMessage = 'Transaction failed - contract may not be deployed or network issue';
       } else if (e.code === 'UNKNOWN_ERROR' && e.message?.includes('404')) {
@@ -501,7 +499,7 @@ export default function InsuracleDashboardAdmin({ setUserType }: ParamifyDashboa
         <div className="bg-black/70 p-8 rounded-lg shadow-lg text-center">
           <h2 className="text-2xl font-bold text-white mb-4">Access Denied</h2>
           <p className="text-white/80 mb-2">You must be connected as the admin to access this dashboard.</p>
-          <p className="text-white/60 text-sm mb-4">Admin address: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266</p>
+          <p className="text-white/60 text-sm mb-4">Admin address: 0x00f2Ef6EB91C2732ca51EAb96cfA92Cd410AC4dF</p>
           <button
             onClick={() => setUserType && setUserType(null)}
             className="mt-4 px-6 py-2 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-lg font-semibold hover:from-purple-600 hover:to-blue-600 transition-all"
@@ -768,8 +766,8 @@ export default function InsuracleDashboardAdmin({ setUserType }: ParamifyDashboa
                     value={fundAmount}
                     onChange={(e) => setFundAmount(e.target.value)}
                     className="w-full bg-black/30 border border-white/20 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Amount to fund (ETH)"
-                    step="0.1"
+                    placeholder="Amount to fund (ETH, e.g., 0.1)"
+                    step="0.001"
                   />
                   <button
                     onClick={handleFundContract}

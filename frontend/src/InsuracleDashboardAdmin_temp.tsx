@@ -56,7 +56,7 @@ export default function InsuracleDashboardAdmin({ setUserType }: ParamifyDashboa
         return;
       }
       setWalletAddress(accounts[0]);
-      const adminAddress = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'.toLowerCase();
+      const adminAddress = '0x00f2Ef6EB91C2732ca51EAb96cfA92Cd410AC4dF'.toLowerCase();
       if (accounts[0].toLowerCase() === adminAddress) {
         setIsAdmin(true);
         setTransactionStatus('');
@@ -83,7 +83,7 @@ export default function InsuracleDashboardAdmin({ setUserType }: ParamifyDashboa
           setWalletChecked(false);
         } else {
           setWalletAddress(accounts[0]);
-          const adminAddress = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'.toLowerCase();
+          const adminAddress = '0x00f2Ef6EB91C2732ca51EAb96cfA92Cd410AC4dF'.toLowerCase();
           if (accounts[0].toLowerCase() === adminAddress) {
             setIsAdmin(true);
             setTransactionStatus('');
@@ -155,7 +155,7 @@ export default function InsuracleDashboardAdmin({ setUserType }: ParamifyDashboa
           const accounts = await provider.send('eth_requestAccounts', []);
           const contract = new ethers.Contract(contractAddresses.paramify, PARAMIFY_ABI, provider);
           // Assume contract has a public 'hasRole' method and ADMIN_ROLE constant
-          const ADMIN_ROLE = ethers.id('ADMIN_ROLE');
+          const ADMIN_ROLE = ethers.id('DEFAULT_ADMIN_ROLE');
           const isAdmin = await contract.hasRole(ADMIN_ROLE, accounts[0]);
           setIsAdmin(isAdmin);
         } catch (e) {
@@ -486,7 +486,7 @@ export default function InsuracleDashboardAdmin({ setUserType }: ParamifyDashboa
         <div className="bg-black/70 p-8 rounded-lg shadow-lg text-center">
           <h2 className="text-2xl font-bold text-white mb-4">Access Denied</h2>
           <p className="text-white/80 mb-2">You must be connected as the admin to access this dashboard.</p>
-          <p className="text-white/60 text-sm mb-4">Admin address: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266</p>
+          <p className="text-white/60 text-sm mb-4">Admin address: 0x00f2Ef6EB91C2732ca51EAb96cfA92Cd410AC4dF</p>
           <button
             onClick={() => setUserType && setUserType(null)}
             className="mt-4 px-6 py-2 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-lg font-semibold hover:from-purple-600 hover:to-blue-600 transition-all"

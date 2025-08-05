@@ -2,36 +2,51 @@ require("@parity/hardhat-polkadot");
 require("@nomicfoundation/hardhat-toolbox");
 require("dotenv").config();
 
-// Normalize env for deploy accounts: prefer DEPLOYER_PRIVATE_KEY, fallback to PRIVATE_KEY or backend ADMIN_PRIVATE_KEY
+// normalize keys (your existing code)
 if (!process.env.DEPLOYER_PRIVATE_KEY) {
   if (process.env.PRIVATE_KEY) process.env.DEPLOYER_PRIVATE_KEY = process.env.PRIVATE_KEY;
   if (!process.env.DEPLOYER_PRIVATE_KEY && process.env.ADMIN_PRIVATE_KEY) {
     process.env.DEPLOYER_PRIVATE_KEY = process.env.ADMIN_PRIVATE_KEY;
   }
 }
-// Keep PRIVATE_KEY in sync for tools that still read it
 if (!process.env.PRIVATE_KEY && process.env.DEPLOYER_PRIVATE_KEY) {
   process.env.PRIVATE_KEY = process.env.DEPLOYER_PRIVATE_KEY;
 }
 
-/** @type import("hardhat/config").HardhatUserConfig */
-module.exports = {
-  // Pure PolkaVM toolchain
-  // Set the Solidity compiler version per provided guidance.
-  solidity: '0.8.28',
+// Defaults for gas controls on passetHub to avoid dropped txs due to null/unsupported fee data
+const GAS_PRICE = Number(process.env.GAS_PRICE || 1e9);     // 1 gwei
+const GAS_LIMIT = Number(process.env.GAS_LIMIT || 5_000_000);
 
-  // resolc configuration for PolkaVM compilation.
-  // IMPORTANT: Do NOT pin a resolc version; let the plugin auto-select a compatible build.
+/** @type import('hardhat/config').HardhatUserConfig */
+module.exports = {
+  // Standard Solidity config (used by Hardhat for normal compile steps)
+  solidity: {
+    version: '0.8.28',
+    settings: {
+      optimizer: {
+        enabled: true,
+        runs: 200,
+      },
+    },
+  },
+
+  // PolkaVM resolc config for hardhat-polkadot plugin.
+  // Remove explicit version to allow the plugin to auto-resolve a valid compiler.
+  // Keep optimizer/settings intact.
   resolc: {
-    // version: (process.env.RESOLC_VERSION || '0.8.28').trim(), // intentionally commented to avoid ResolcPluginError
     compilerSource: 'npm',
     optimizer: {
       enabled: true,
       parameters: 'z',
       fallbackOz: true,
-      runs: 200
+      runs: 200,
     },
     standardJson: true
+  },
+
+  // Explicitly disable gas-reporter against PolkaVM endpoints to avoid unsupported RPCs
+  gasReporter: {
+    enabled: false,
   },
 
   paths: {
@@ -40,16 +55,34 @@ module.exports = {
     cache: "./cache",
     artifacts: "./artifacts",
   },
-
-  // @parity/hardhat-polkadot drives compilation/runtime for PolkaVM.
   networks: {
-    // PassetHub testnet (PolkaVM)
+    // Local PolkaVM node + ETH-RPC adapter configuration
+    // Fill in the binary paths or set via environment variables:
+    //   PVM_NODE_BIN=/path/to/substrate-node
+    //   PVM_ADAPTER_BIN=/path/to/eth-rpc-adapter
+    hardhat: {
+      polkavm: true,
+      nodeConfig: {
+        nodeBinaryPath: process.env.PVM_NODE_BIN || '/home/danie/polkadot-sdk/target/release/substrate-node',
+        rpcPort: Number(process.env.PVM_RPC_PORT || 8000),
+        dev: true,
+      },
+      adapterConfig: {
+        adapterBinaryPath: process.env.PVM_ADAPTER_BIN || '/home/danie/polkadot-sdk/target/release/eth-rpc',
+        dev: true,
+      },
+    },
+
     passetHub: {
       polkavm: true,
       url: process.env.RPC_URL || 'https://testnet-passet-hub-eth-rpc.polkadot.io',
       accounts: process.env.DEPLOYER_PRIVATE_KEY ? [process.env.DEPLOYER_PRIVATE_KEY] : (process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : []),
       chainId: Number(process.env.CHAIN_ID || 420420422),
       timeout: 180000,
+
+      // Force legacy-style gas to avoid adapter returning null fee data
+      gasPrice: GAS_PRICE,
+      gas: GAS_LIMIT,
     },
   },
 };
