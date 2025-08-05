@@ -37,10 +37,24 @@ export default function InsuracleDashboard({ setUserType }: InsuracleDashboardPr
           const network = await provider.getNetwork();
           const chainId = Number(network.chainId);
           
-          // Only support PolkaVM (420420420)
-          if (chainId !== 420420420) {
+          // Only support PassetHub Testnet (420420422)
+          if (chainId !== 420420422) {
             setNetworkError(true);
-            setTransactionStatus('Please connect to PolkaVM Local network (Chain ID: 420420420)');
+            setTransactionStatus('Wrong Network. Please connect to PassetHub Testnet (Chain ID: 420420422).');
+            // Try to suggest adding/switching to PassetHub in MetaMask
+            try {
+              await (window as any).ethereum?.request?.({
+                method: 'wallet_addEthereumChain',
+                params: [{
+                  chainId: '0x' + (420420422).toString(16),
+                  chainName: 'PassetHub Testnet',
+                  nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
+                  rpcUrls: ['https://testnet-passet-hub-eth-rpc.polkadot.io'],
+                }]
+              });
+            } catch (e) {
+              console.warn('User rejected or add chain failed:', e);
+            }
             return;
           } else {
             setNetworkError(false);
@@ -52,7 +66,7 @@ export default function InsuracleDashboard({ setUserType }: InsuracleDashboardPr
           setEthBalance(Number(ethers.formatEther(balance)));
           
           // Get contract addresses for the current network
-          const contractAddresses = getContractAddresses(chainId);
+          const contractAddresses = getContractAddresses();
           const contract = new ethers.Contract(contractAddresses.paramify, PARAMIFY_ABI, provider);
           
           // Get contract balance
@@ -98,7 +112,7 @@ export default function InsuracleDashboard({ setUserType }: InsuracleDashboardPr
           }
         } catch (e) {
           console.error('Error connecting to wallet:', e);
-          setTransactionStatus('Error connecting to wallet. Make sure MetaMask is installed and connected to localhost:8545');
+          setTransactionStatus('Error connecting to wallet. Make sure MetaMask is installed and connected to PassetHub Testnet (420420422)');
         }
       }
     };
@@ -174,7 +188,7 @@ export default function InsuracleDashboard({ setUserType }: InsuracleDashboardPr
       
       // Get network and contract addresses
       const network = await provider.getNetwork();
-      const contractAddresses = getContractAddresses(Number(network.chainId));
+      const contractAddresses = getContractAddresses();
       const contract = new ethers.Contract(contractAddresses.paramify, PARAMIFY_ABI, signer);
       
       const coverage = ethers.parseEther(policyAmount.toString());
@@ -247,7 +261,7 @@ export default function InsuracleDashboard({ setUserType }: InsuracleDashboardPr
       
       // Get network and contract addresses
       const network = await provider.getNetwork();
-      const contractAddresses = getContractAddresses(Number(network.chainId));
+      const contractAddresses = getContractAddresses();
       
       // Use the imported PARAMIFY_ABI instead of defining a minimal ABI locally
       const contract = new ethers.Contract(contractAddresses.paramify, PARAMIFY_ABI, signer);
@@ -348,7 +362,7 @@ export default function InsuracleDashboard({ setUserType }: InsuracleDashboardPr
                 <AlertCircle className="h-5 w-5 text-red-400 mr-3" />
                 <div>
                   <p className="text-red-200 font-semibold">Wrong Network</p>
-                  <p className="text-red-300 text-sm">Please connect to PolkaVM Local network (Chain ID: 420420420)</p>
+                  <p className="text-red-300 text-sm">Please connect to PassetHub Testnet (Chain ID: 420420422)</p>
                 </div>
               </div>
             </div>

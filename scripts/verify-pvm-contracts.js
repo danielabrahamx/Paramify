@@ -4,36 +4,53 @@ const fs = require('fs');
 async function main() {
   console.log("Verifying PolkaVM deployment...\n");
   
-  // Load deployment addresses
-  const deployment = JSON.parse(fs.readFileSync('pvm-deployment.json', 'utf8'));
+  // Load deployment addresses from environment (PassetHub Testnet)
+  const deployment = {
+    network: "PassetHub Testnet",
+    chainId: process.env.CHAIN_ID || process.env.VITE_CHAIN_ID || 420420422,
+    timestamp: new Date().toISOString(),
+    contracts: {
+      MockV3Aggregator: process.env.MOCK_AGGREGATOR_ADDRESS || process.env.VITE_MOCK_AGGREGATOR_ADDRESS || "",
+      Paramify: process.env.PARAMIFY_CONTRACT_ADDRESS || process.env.VITE_PARAMIFY_CONTRACT_ADDRESS || ""
+    }
+  };
   console.log("Network:", deployment.network);
   console.log("Chain ID:", deployment.chainId);
   console.log("Deployment timestamp:", deployment.timestamp);
   console.log("\nContract addresses:");
-  console.log("MockV3Aggregator:", deployment.contracts.MockV3Aggregator);
-  console.log("Paramify:", deployment.contracts.Paramify);
+  console.log("MockV3Aggregator:", deployment.contracts.MockV3Aggregator || "(missing)");
+  console.log("Paramify:", deployment.contracts.Paramify || "(missing)");
+  if (!deployment.contracts.Paramify) {
+    console.error("Paramify address not set in env. Set PARAMIFY_CONTRACT_ADDRESS or VITE_PARAMIFY_CONTRACT_ADDRESS.");
+    process.exit(1);
+  }
   
   const [signer] = await hre.ethers.getSigners();
   console.log("\nUsing account:", signer.address);
   
   // Connect to contracts
-  const MockV3Aggregator = await hre.ethers.getContractFactory("MockV3Aggregator");
-  const mockAggregator = MockV3Aggregator.attach(deployment.contracts.MockV3Aggregator);
-  
   const Paramify = await hre.ethers.getContractFactory("Paramify");
   const paramify = Paramify.attach(deployment.contracts.Paramify);
+
+  let mockAggregator = null;
+  if (deployment.contracts.MockV3Aggregator) {
+    const MockV3Aggregator = await hre.ethers.getContractFactory("MockV3Aggregator");
+    mockAggregator = MockV3Aggregator.attach(deployment.contracts.MockV3Aggregator);
+  } else {
+    console.warn("No MockV3Aggregator address provided. Skipping oracle checks.");
+  }
   
   // Test MockV3Aggregator
-  console.log("\n--- Testing MockV3Aggregator ---");
-  try {
-    const decimals = await mockAggregator.decimals();
-    console.log("Decimals:", decimals);
-    
-    const latestRoundData = await mockAggregator.latestRoundData();
-    console.log("Latest price:", latestRoundData.answer.toString());
-    console.log("Price in USD:", Number(latestRoundData.answer) / 10**8);
-  } catch (error) {
-    console.error("Error reading from MockV3Aggregator:", error.message);
+  if (mockAggregator) {
+    console.log("\n--- Testing MockV3Aggregator ---");
+    try {
+      const decimals = await mockAggregator.decimals();
+      console.log("Decimals:", decimals);
+      const latestRoundData = await mockAggregator.latestRoundData();
+      console.log("Latest price:", latestRoundData.answer.toString());
+    } catch (error) {
+      console.error("Error reading from MockV3Aggregator:", error.message);
+    }
   }
   
   // Test Paramify

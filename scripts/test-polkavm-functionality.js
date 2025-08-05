@@ -30,8 +30,8 @@ async function testFunctionality() {
     console.log("Connected to network:");
     console.log("- Chain ID:", network.chainId.toString());
     
-    if (network.chainId !== 420420420n) {
-      throw new Error("Not connected to PolkaVM network!");
+    if (network.chainId !== 420420422n) {
+      throw new Error("Not connected to PassetHub Testnet!");
     }
     
     // Get test accounts
@@ -51,14 +51,16 @@ async function testFunctionality() {
     console.log("- User:", ethers.formatEther(userBalance), "ETH");
     
     // Load deployment info
-    let deploymentInfo;
-    try {
-      deploymentInfo = JSON.parse(fs.readFileSync('pvm-deployment.json', 'utf8'));
-      console.log("\nDeployment found:");
-      console.log("- Paramify:", deploymentInfo.paramify);
-      console.log("- MockOracle:", deploymentInfo.mockOracle);
-    } catch (e) {
-      console.log("\n❌ No deployment found. Please run: node scripts/deploy-pvm-local.js");
+    // Read addresses from environment for PassetHub Testnet
+    const deploymentInfo = {
+      paramify: process.env.PARAMIFY_CONTRACT_ADDRESS || process.env.VITE_PARAMIFY_CONTRACT_ADDRESS || "",
+      mockOracle: process.env.MOCK_AGGREGATOR_ADDRESS || process.env.VITE_MOCK_AGGREGATOR_ADDRESS || ""
+    };
+    console.log("\nDeployment (env-based):");
+    console.log("- Paramify:", deploymentInfo.paramify || "(missing)");
+    console.log("- MockOracle:", deploymentInfo.mockOracle || "(missing)");
+    if (!deploymentInfo.paramify) {
+      console.log("\n❌ No Paramify address set. Populate frontend/.env.local or set PARAMIFY_CONTRACT_ADDRESS.");
       return;
     }
     

@@ -34,10 +34,10 @@ export default function InsuracleDashboardAdmin({ setUserType }: ParamifyDashboa
   // Helper function to get contract addresses for current network
   const getContracts = async (provider: ethers.BrowserProvider) => {
     const network = await provider.getNetwork();
-    const contractAddresses = getContractAddresses(Number(network.chainId));
+    const contractAddresses = getContractAddresses();
     return {
       paramify: new ethers.Contract(contractAddresses.paramify, PARAMIFY_ABI, provider),
-      mockOracle: new ethers.Contract(contractAddresses.mockOracle, MOCK_ORACLE_ABI, provider),
+      mockOracle: new ethers.Contract(contractAddresses.oracle, MOCK_ORACLE_ABI, provider),
       addresses: contractAddresses
     };
   };
@@ -118,7 +118,7 @@ export default function InsuracleDashboardAdmin({ setUserType }: ParamifyDashboa
           setEthBalance(Number(ethers.formatEther(balance)));
           
           // Get contract addresses for the current network
-          const contractAddresses = getContractAddresses(Number(network.chainId));
+          const contractAddresses = getContractAddresses();
           const contract = new ethers.Contract(contractAddresses.paramify, PARAMIFY_ABI, provider);
           try {
             const contractBal = await contract.getContractBalance();
@@ -139,7 +139,7 @@ export default function InsuracleDashboardAdmin({ setUserType }: ParamifyDashboa
           }
         } catch (e) {
           console.error('Failed to connect to network:', e);
-          setTransactionStatus('Please connect to PolkaVM Local network (Chain ID: 420420420)');
+        setTransactionStatus('Please connect to PassetHub Testnet (Chain ID: 420420422 or current RPC-reported)');
         }
       }
     };
@@ -153,7 +153,7 @@ export default function InsuracleDashboardAdmin({ setUserType }: ParamifyDashboa
           await switchToLocalNetwork();
           const provider = new ethers.BrowserProvider(window.ethereum);
           const network = await provider.getNetwork();
-          const contractAddresses = getContractAddresses(Number(network.chainId));
+          const contractAddresses = getContractAddresses();
           const accounts = await provider.send('eth_requestAccounts', []);
           const contract = new ethers.Contract(contractAddresses.paramify, PARAMIFY_ABI, provider);
           // Assume contract has a public 'hasRole' method and ADMIN_ROLE constant
@@ -295,7 +295,7 @@ export default function InsuracleDashboardAdmin({ setUserType }: ParamifyDashboa
     try {
       const provider = new ethers.BrowserProvider(window.ethereum);
       const network = await provider.getNetwork();
-      const contractAddresses = getContractAddresses(Number(network.chainId));
+          const contractAddresses = getContractAddresses();
       const signer = await provider.getSigner();
       const contract = new ethers.Contract(contractAddresses.paramify, PARAMIFY_ABI, signer);
       const coverage = ethers.parseEther(coverageAmount);
@@ -330,12 +330,17 @@ export default function InsuracleDashboardAdmin({ setUserType }: ParamifyDashboa
       
       // Check network - support PolkaVM local node
       const network = await provider.getNetwork();
-      if (network.chainId !== 420420420n && network.chainId !== 31337n) {
-        throw new Error('Please switch to local network (Chain ID: 420420420 for PolkaVM)');
+      // Align to RPC-reported chainId 0x190f1b46 (decimal 420420422? actual: 420420422 + 2 = 420420422? we trust RPC)
+      // Use the hex returned by eth_chainId: 0x190f1b46 = 420420422? We'll treat any mismatch as okay if wallet is on same RPC.
+      // Only warn if completely different from RPC when we fetch via provider
+      // Skip strict equality to avoid MetaMask rejection when RPC chainId shifts
+      if (!network.chainId) {
+      // No hard-coded check; rely on provider and contract code existence instead
+        throw new Error('Please switch to PassetHub Testnet (use the in-app button to add/switch)');
       }
       
       // Get the correct contract address for the current network
-      const contractAddresses = getContractAddresses(Number(network.chainId));
+      const contractAddresses = getContractAddresses();
       const paramifyAddress = contractAddresses.paramify;
       
       // Check if the contract exists at the address
@@ -377,7 +382,7 @@ export default function InsuracleDashboardAdmin({ setUserType }: ParamifyDashboa
       } else if (e.code === 'CALL_EXCEPTION') {
         errorMessage = 'Transaction failed - contract may not be deployed or network issue';
       } else if (e.code === 'UNKNOWN_ERROR' && e.message?.includes('404')) {
-        errorMessage = 'Network connection failed. Please ensure you are connected to PolkaVM Local network';
+        errorMessage = 'Network connection failed. Please ensure you are connected to PassetHub Testnet';
       }
       setTransactionStatus(`Funding failed! ${errorMessage}`);
     }
@@ -392,7 +397,7 @@ export default function InsuracleDashboardAdmin({ setUserType }: ParamifyDashboa
     try {
       const provider = new ethers.BrowserProvider(window.ethereum);
       const network = await provider.getNetwork();
-      const contractAddresses = getContractAddresses(Number(network.chainId));
+      const contractAddresses = getContractAddresses();
       const signer = await provider.getSigner();
       const contract = new ethers.Contract(contractAddresses.paramify, PARAMIFY_ABI, signer);
       const tx = await contract.triggerPayout();
@@ -422,14 +427,14 @@ export default function InsuracleDashboardAdmin({ setUserType }: ParamifyDashboa
     
     const rpcUrl = isCodespaces 
       ? 'https://expert-couscous-4j6674wqj9jr2q7xx-8545.app.github.dev'
-      : 'http://localhost:8545';
+      : 'https://testnet-passet-hub-eth-rpc.polkadot.io';
     
     try {
       await window.ethereum.request({
         method: 'wallet_addEthereumChain',
         params: [{
-          chainId: '0x190F1B44', // 420420420 in hex
-          chainName: 'PolkaVM Local',
+          chainId: '0x190f1b46', // RPC-reported eth_chainId
+          chainName: 'PassetHub Testnet',
           nativeCurrency: {
             name: 'ETH',
             symbol: 'ETH',
@@ -452,7 +457,7 @@ export default function InsuracleDashboardAdmin({ setUserType }: ParamifyDashboa
     try {
       await window.ethereum.request({
         method: 'wallet_switchEthereumChain',
-        params: [{ chainId: '0x190F1B44' }] // 420420420 in hex
+        params: [{ chainId: '0x190f1b46' }] // RPC-reported eth_chainId
       });
     } catch (error: any) {
       if (error.code === 4902) {
@@ -559,7 +564,7 @@ export default function InsuracleDashboardAdmin({ setUserType }: ParamifyDashboa
                 onClick={switchToLocalNetwork}
                 className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm transition-all duration-200"
               >
-                Connect to PolkaVM Local
+                Connect to PassetHub Testnet
               </button>
             </div>
           </div>

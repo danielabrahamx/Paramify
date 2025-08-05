@@ -1,5 +1,10 @@
 const hre = require("hardhat");
 
+/**
+ * DEPRECATED: Legacy local/PolkaVM-local deployment script.
+ * This project now deploys to PassetHub Testnet via Hardhat Ignition.
+ * Use: npm run polkavm:deploy:passethub
+ */
 async function main() {
   console.log("Deploying contracts to PolkaVM...");
   
@@ -26,20 +31,7 @@ async function main() {
   console.log("MockV3Aggregator:", aggregatorAddress);
   console.log("Paramify:", paramifyAddress);
   
-  // Save deployment addresses
-  const fs = require('fs');
-  const deployment = {
-    network: "localNode",
-    chainId: 420420420,
-    contracts: {
-      MockV3Aggregator: aggregatorAddress,
-      Paramify: paramifyAddress
-    },
-    timestamp: new Date().toISOString()
-  };
-  
-  fs.writeFileSync('pvm-deployment.json', JSON.stringify(deployment, null, 2));
-  console.log("\nDeployment addresses saved to pvm-deployment.json");
+  // NOTE: Legacy artifact writing disabled. pvm-deployment.json is not used on PassetHub.
 }
 
 main()

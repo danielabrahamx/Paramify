@@ -1,77 +1,33 @@
-version: '3.8'
-
 services:
-  hardhat:
-    build:
-      context: .
-      dockerfile: Dockerfile.hardhat
-    ports:
-      - "8545:8545"
-    volumes:
-      - ./contracts:/app/contracts
-      - ./scripts:/app/scripts
-      - hardhat-data:/app/.hardhat
-    networks:
-      - paramify-network
-
-  deploy:
-    build:
-      context: .
-      dockerfile: Dockerfile.deploy
-    depends_on:
-      - hardhat
-    environment:
-      - HARDHAT_NETWORK=localhost
-      - RPC_URL=http://hardhat:8545
-    volumes:
-      - ./contracts:/app/contracts
-      - ./scripts:/app/scripts
-      - ./backend/.env:/app/backend/.env
-      - ./frontend/.env.local:/app/frontend/.env.local
-      - ./frontend/src/lib/contract.ts:/app/frontend/src/lib/contract.ts
-    networks:
-      - paramify-network
-
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    build: ./backend
+    container_name: paramify-backend
     ports:
-      - "3001:3001"
-    depends_on:
-      - deploy
-    environment:
-      - NODE_ENV=development
-      - RPC_URL=http://hardhat:8545
+      - "3002:3001"
     env_file:
-      - ./backend/.env
-    volumes:
-      - ./backend:/app
-      - /app/node_modules
-    networks:
-      - paramify-network
+      - backend/.env
+    restart: unless-stopped
 
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
+    build: ./frontend
+    container_name: paramify-frontend
     ports:
       - "5173:5173"
+    env_file:
+      - frontend/.env.local
     depends_on:
       - backend
-    environment:
-      - NODE_ENV=development
+    restart: unless-stopped
+
+  deployer:
+    image: node:20-bullseye
+    container_name: paramify-deployer
+    working_dir: /app
     env_file:
-      - ./frontend/.env.local
+      - .env.deployment
     volumes:
-      - ./frontend:/app
+      - ./:/app
       - /app/node_modules
-    networks:
-      - paramify-network
-
-networks:
-  paramify-network:
-    driver: bridge
-
-volumes:
-  hardhat-data:
+    entrypoint: ["bash", "-lc", "chmod +x scripts/deployer-entry.sh; ./scripts/deployer-entry.sh"]
+    # Run once and exit
+    restart: "no"
