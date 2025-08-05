@@ -1,58 +1,54 @@
-require('@nomicfoundation/hardhat-toolbox');
 require("@parity/hardhat-polkadot");
+require("@nomicfoundation/hardhat-toolbox");
 require("dotenv").config();
 
-/** @type import('hardhat/config').HardhatUserConfig */
+// Normalize env for deploy accounts: prefer DEPLOYER_PRIVATE_KEY, fallback to PRIVATE_KEY or backend ADMIN_PRIVATE_KEY
+if (!process.env.DEPLOYER_PRIVATE_KEY) {
+  if (process.env.PRIVATE_KEY) process.env.DEPLOYER_PRIVATE_KEY = process.env.PRIVATE_KEY;
+  if (!process.env.DEPLOYER_PRIVATE_KEY && process.env.ADMIN_PRIVATE_KEY) {
+    process.env.DEPLOYER_PRIVATE_KEY = process.env.ADMIN_PRIVATE_KEY;
+  }
+}
+// Keep PRIVATE_KEY in sync for tools that still read it
+if (!process.env.PRIVATE_KEY && process.env.DEPLOYER_PRIVATE_KEY) {
+  process.env.PRIVATE_KEY = process.env.DEPLOYER_PRIVATE_KEY;
+}
+
+/** @type import("hardhat/config").HardhatUserConfig */
 module.exports = {
   // Pure PolkaVM toolchain
-  solidity: '0.8.26',
-  // Let @parity/hardhat-polkadot manage resolc internally (no explicit version).
-  // Using npm-based resolc source only.
+  // Set the Solidity compiler version per provided guidance.
+  solidity: '0.8.28',
+
+  // resolc configuration for PolkaVM compilation.
+  // IMPORTANT: Do NOT pin a resolc version; let the plugin auto-select a compatible build.
   resolc: {
+    // version: (process.env.RESOLC_VERSION || '0.8.28').trim(), // intentionally commented to avoid ResolcPluginError
     compilerSource: 'npm',
-    settings: {
-      optimizer: {
-        enabled: true,
-        parameters: 'z',
-        fallbackOz: true,
-        runs: 200,
-      },
-      standardJson: true,
+    optimizer: {
+      enabled: true,
+      parameters: 'z',
+      fallbackOz: true,
+      runs: 200
     },
+    standardJson: true
   },
+
   paths: {
     sources: "./contracts",
     tests: "./test",
     cache: "./cache",
     artifacts: "./artifacts",
   },
-  // @parity/hardhat-polkadot drives compilation/runtime for PolkaVM.
-  // Note: The plugin’s recent versions removed resolc config from userland; compilation is handled internally.
-  networks: {
-    // (Optional) Local PolkaVM via node + ETH-RPC adapter.
-    // Keeping this commented for the simplest workflow targeting PassetHub testnet only.
-    // Uncomment and provide binaries later if you want a local node.
-    // polkavmLocal: {
-    //   polkavm: true,
-    //   nodeConfig: {
-    //     nodeBinaryPath: process.env.PVM_NODE_BIN || "tools/polkavm-node",
-    //     rpcPort: Number(process.env.PVM_NODE_RPC_PORT || 8000),
-    //     dev: true,
-    //   },
-    //   adapterConfig: {
-    //     adapterBinaryPath: process.env.PVM_ADAPTER_BIN || "tools/eth-rpc-adapter",
-    //     dev: true,
-    //   },
-    //   chainId: 420420420,
-    //   timeout: 180000,
-    // },
 
+  // @parity/hardhat-polkadot drives compilation/runtime for PolkaVM.
+  networks: {
     // PassetHub testnet (PolkaVM)
     passetHub: {
       polkavm: true,
-      url: 'https://testnet-passet-hub-eth-rpc.polkadot.io',
-      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
-      chainId: 420420422,
+      url: process.env.RPC_URL || 'https://testnet-passet-hub-eth-rpc.polkadot.io',
+      accounts: process.env.DEPLOYER_PRIVATE_KEY ? [process.env.DEPLOYER_PRIVATE_KEY] : (process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : []),
+      chainId: Number(process.env.CHAIN_ID || 420420422),
       timeout: 180000,
     },
   },

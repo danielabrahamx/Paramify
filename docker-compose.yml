@@ -7,6 +7,9 @@ services:
     env_file:
       - backend/.env
     restart: unless-stopped
+    depends_on:
+      deployer:
+        condition: service_completed_successfully
 
   frontend:
     build: ./frontend
@@ -16,7 +19,8 @@ services:
     env_file:
       - frontend/.env.local
     depends_on:
-      - backend
+      backend:
+        condition: service_started
     restart: unless-stopped
 
   deployer:
@@ -25,6 +29,10 @@ services:
     working_dir: /app
     env_file:
       - .env.deployment
+    environment:
+      # Ensure these defaults are available inside the container too
+      - RPC_URL=${RPC_URL:-https://testnet-passet-hub-eth-rpc.polkadot.io}
+      - CHAIN_ID=${CHAIN_ID:-420420422}
     volumes:
       - ./:/app
       - /app/node_modules

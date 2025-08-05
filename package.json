@@ -5,9 +5,12 @@
   "scripts": {
     "polkavm:compile": "npx hardhat compile",
     "polkavm:test": "npx hardhat test",
-    "polkavm:deploy:passethub": "npx hardhat ignition deploy ./ignition/modules/Paramify.js --network passetHub",
+    "polkavm:deploy:passethub": "node scripts/predeploy-checks.js passetHub && npx hardhat ignition deploy ./ignition/modules/Paramify.js --network passetHub && node scripts/update-env-from-ignition.js passetHub",
     "polkavm:verify": "npx hardhat run scripts/verify-pvm-deployment.js --network passetHub",
-    "clean": "rmdir /s /q cache-pvm artifacts-pvm 2>nul & rmdir /s /q artifacts 2>nul & rmdir /s /q cache 2>nul & exit 0"
+    "polkavm:deploy:local": "node scripts/predeploy-checks.js polkavmLocal && npx hardhat ignition deploy ./ignition/modules/Paramify.js --network polkavmLocal && node scripts/update-env-from-ignition.js polkavmLocal",
+    "polkavm:e2e": "node scripts/e2e-passethub.js",
+    "polkavm:node:info": "echo \"Start your local nodes in Ubuntu terminals:\\n1) substrate node: PVM_NODE_BIN=/home/danie/polkadot-sdk/target/release/substrate-node ./start-node.sh (see docs)\\n2) eth-rpc adapter: PVM_ADAPTER_BIN=/home/danie/polkadot-sdk/target/release/eth-rpc ./start-adapter.sh\"",
+    "clean": "rimraf cache-pvm artifacts-pvm artifacts cache ignition/deployments/*"
   },
   "keywords": [],
   "author": "",
@@ -32,6 +35,8 @@
     "ethers": "^6.14.0",
     "hardhat": "^2.26.0",
     "hardhat-gas-reporter": "^2.3.0",
+    "rimraf": "^5.0.10",
+    "solc": "0.8.28",
     "solidity-coverage": "^0.8.16",
     "typechain": "^8.3.2"
   },
