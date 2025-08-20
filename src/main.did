@@ -10,6 +10,8 @@ type Error = variant {
   NoFundsToWithdraw;
   InvalidThreshold;
   InvalidPrincipal;
+  ParseError;
+  HttpRequestFailed;
 };
 
 type Policy = record {

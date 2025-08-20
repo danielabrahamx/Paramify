@@ -1,0 +1,67 @@
+type Result = 
+ variant {
+   err: Error;
+   ok: text;
+ };
+type Policy = 
+ record {
+   active: bool;
+   coverage: nat;
+   customer: principal;
+   paidOut: bool;
+   premium: nat;
+   timestamp: int;
+ };
+type Error = 
+ variant {
+   FloodLevelBelowThreshold;
+   HttpRequestFailed;
+   InsufficientPremium;
+   InvalidAmount;
+   InvalidPrincipal;
+   InvalidThreshold;
+   NoFundsToWithdraw;
+   NoPolicyFound;
+   NotAuthorized;
+   ParseError;
+   PayoutFailed;
+   PolicyAlreadyActive;
+   PolicyAlreadyPaidOut;
+ };
+service : {
+  activatePolicy: () -> (Result);
+  addAdmin: (principal) -> (Result);
+  buyInsurance: (nat) -> (Result);
+  canisterBalance: () -> (nat);
+  canisterStatus: () ->
+   (record {
+      balance: nat;
+      cycles: nat;
+      memorySize: nat;
+      policies: nat;
+    }) query;
+  checkForPayouts: () -> (Result);
+  deactivatePolicy: () -> (Result);
+  depositCycles: () -> (nat);
+  fundContract: (nat) -> (Result);
+  getContractBalance: () -> (nat) query;
+  getCurrentFloodLevel: () -> (nat) query;
+  getFloodLevelInFeet: () -> (nat) query;
+  getLastOracleUpdate: () -> (int) query;
+  getMyPolicy: () -> (opt Policy) query;
+  getMyUsername: () -> (opt text) query;
+  hello: () -> (text) query;
+  init: () -> (Result);
+  listAdmins: () -> (vec principal) query;
+  listUsers: () -> (vec record {
+                          principal;
+                          text;
+                        }) query;
+  payPremium: () -> (Result);
+  register: (text) -> (Result);
+  removeAdmin: (principal) -> (Result);
+  runAutoPayouts: () -> (Result);
+  triggerPayout: () -> (Result);
+  updateFloodData: () -> (Result);
+  withdraw: (nat) -> (Result);
+}

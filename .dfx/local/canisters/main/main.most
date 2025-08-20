@@ -1,0 +1,20 @@
+// Version: 1.0.0
+type Policy =
+  {
+    active : Bool;
+    coverage : Nat;
+    customer : Principal;
+    paidOut : Bool;
+    premium : Nat;
+    timestamp : Int
+  };
+actor {
+  stable var admins : [Principal];
+  stable var contractBalance : Nat;
+  stable var currentFloodLevel : Nat;
+  stable var floodThreshold : Nat;
+  stable var lastOracleUpdate : Int;
+  stable var owner : Principal;
+  stable var policiesEntries : [(Principal, Policy)];
+  stable var users : [(Principal, Text)]
+};

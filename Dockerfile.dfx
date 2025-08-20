@@ -1,0 +1,22 @@
+FROM ubuntu:22.04
+
+# Install dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    wget \
+    build-essential \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install DFX using non-interactive method
+RUN curl -L https://github.com/dfinity/dfx/releases/latest/download/dfx-x86_64-linux -o /usr/local/bin/dfx \
+    && chmod +x /usr/local/bin/dfx
+
+# Set working directory
+WORKDIR /workspace
+
+# Expose ports for local network
+EXPOSE 8000 8080 4943
+
+# Default command
+CMD ["dfx", "--help"]

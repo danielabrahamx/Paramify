@@ -1,5 +1,4 @@
 import Array "mo:base/Array";
-import Buffer "mo:base/Buffer";
 import HashMap "mo:base/HashMap";
 import Int "mo:base/Int";
 import Iter "mo:base/Iter";
@@ -7,10 +6,10 @@ import Nat "mo:base/Nat";
 import Principal "mo:base/Principal";
 import Result "mo:base/Result";
 import Time "mo:base/Time";
-import Blob "mo:base/Blob";
 import Error "mo:base/Error";
 import Text "mo:base/Text";
-import Http "mo:http/Http";
+// import Set "mo:base/Set"; // Not available in DFX 0.18.0
+// import Http "mo:http/Http"; // Temporarily disabled for local testing
 import Debug "mo:base/Debug";
 import Cycles "mo:base/ExperimentalCycles";
 
@@ -23,11 +22,11 @@ actor Main {
   stable var lastOracleUpdate : Int = 0;
   stable var owner : Principal = Principal.fromText("aaaaa-aa"); // Default to management canister
   stable var admins : [Principal] = [];
-  let adminSet = Set.fromArray<Principal>(admins, Principal.equal, Principal.hash);
+  // let adminSet = Set.fromArray<Principal>(admins, Principal.equal, Principal.hash); // Not available in DFX 0.18.0
 
   // Access control functions
   func isAdmin(p: Principal) : Bool {
-    p == owner or Set.mem<Principal>(adminSet, p, Principal.equal)
+    p == owner or Array.find<Principal>(admins, func(admin) { admin == p }) != null
   };
 
   public shared(msg) func addAdmin(newAdmin: Principal) : async Result {
@@ -40,7 +39,7 @@ actor Main {
       return #err(#InvalidPrincipal);
     };
     admins := Array.append(admins, [newAdmin]);
-    adminSet.add(newAdmin);
+    // adminSet := Set.add<Principal>(adminSet, newAdmin, Principal.equal); // Not available in DFX 0.18.0
     logEvent("AdminAdded", "New admin: " # Principal.toText(newAdmin));
     #ok("Admin added successfully")
   };
@@ -55,7 +54,7 @@ actor Main {
       return #err(#InvalidPrincipal);
     };
     admins := Array.filter<Principal>(admins, func(p) { p != admin });
-    adminSet.delete(admin);
+    // adminSet := Set.delete<Principal>(adminSet, admin, Principal.equal); // Not available in DFX 0.18.0
     logEvent("AdminRemoved", "Removed admin: " # Principal.toText(admin));
     #ok("Admin removed successfully")
   };
@@ -96,6 +95,8 @@ actor Main {
     #NoFundsToWithdraw;
     #InvalidThreshold;
     #InvalidPrincipal;
+    #ParseError;
+    #HttpRequestFailed;
   };
 
   public type Result = Result.Result<Text, Error>;
@@ -110,9 +111,20 @@ actor Main {
     lastOracleUpdate : Int;
   };
 
+  // Logging functions - moved to top so they can be called by other functions
+  func logError(err: Error, context: Text) {
+    Debug.print("Error [" # context # "]: " # debug_show(err));
+  };
+
+  func logEvent(event: Text, details: Text) {
+    Debug.print("Event [" # event # "]: " # details);
+  };
+
   // Upgrade hooks
   system func preupgrade() {
     policiesEntries := Iter.toArray(policies.entries());
+    users := Iter.toArray(userMap.entries());
+    // admins := Iter.toArray(adminSet.entries()); // Not available in DFX 0.18.0
   };
 
   system func postupgrade() {
@@ -120,14 +132,20 @@ actor Main {
       policiesEntries.vals(), 10, Principal.equal, Principal.hash
     );
     policiesEntries := [];
+    userMap := HashMap.fromIter<Principal, Text>(
+      users.vals(), 10, Principal.equal, Principal.hash
+    );
+    users := [];
+    // adminSet := Set.fromArray<Principal>(admins, Principal.equal, Principal.hash); // Not available in DFX 0.18.0
+    admins := [];
   };
 
-  // HTTP outcall types
-  type HttpRequest = Http.Request;
-  type HttpResponse = Http.Response;
+  // HTTP outcall types - temporarily disabled
+  // type HttpRequest = Http.Request;
+  // type HttpResponse = Http.Response;
 
-  // USGS API configuration
-  let USGS_API_URL = "https://waterservices.usgs.gov/nwis/iv/?format=json&sites=01491000&parameterCd=00065&siteStatus=all";
+  // USGS API configuration - temporarily disabled
+  // let USGS_API_URL = "https://waterservices.usgs.gov/nwis/iv/?format=json&sites=01491000&parameterCd=00065&siteStatus=all";
 
   // Initialization function
   public shared(msg) func init() : async Result {
@@ -136,46 +154,22 @@ actor Main {
     #ok("Canister initialized");
   };
 
-  // Fetch flood data from USGS API
+  // Fetch flood data from USGS API - temporarily disabled
   public shared(msg) func updateFloodData() : async Result {
     if (msg.caller != owner) return #err(#NotAuthorized);
     
-    let request : HttpRequest = {
-      method = "GET";
-      url = USGS_API_URL;
-      headers = [];
-      body = Blob.fromArray([]);
-    };
-
-    try {
-      let response : HttpResponse = await Http.http_request(request);
-      
-      if (response.status == 200) {
-        let body = Blob.toText(response.body);
-        switch (parseFloodLevel(body)) {
-          case (?level) {
-            currentFloodLevel := level;
-            lastOracleUpdate := Time.now();
-            #ok("Flood data updated successfully");
-          };
-          case null {
-            #err(#ParseError);
-          };
-        };
-      } else {
-        #err(#HttpRequestFailed);
-      };
-    } catch (e) {
-      #err(#HttpRequestFailed);
-    };
+    // Temporarily return mock data for local testing
+    currentFloodLevel := 1000;
+    lastOracleUpdate := Time.now();
+    #ok("Mock flood data updated successfully");
   };
 
-  // Parse flood level from USGS response
-  func parseFloodLevel(json : Text) : ?Nat {
-    // TODO: Implement proper JSON parsing
-    // For now return a mock value
-    ?1000;
-  };
+  // Parse flood level from USGS response - temporarily disabled
+  // func parseFloodLevel(json : Text) : ?Nat {
+  //   // TODO: Implement proper JSON parsing
+  //   // For now return a mock value
+  //   ?1000;
+  // };
 
   // Query functions for flood data
   public query func getCurrentFloodLevel() : async Nat {
@@ -217,43 +211,9 @@ actor Main {
     Iter.toArray(userMap.entries())
   };
 
-  // Update preupgrade to include users
-  system func preupgrade() {
-    policiesEntries := Iter.toArray(policies.entries());
-    users := Iter.toArray(userMap.entries());
-    admins := Set.toArray(adminSet);
-  };
+  // Upgrade hooks are now handled above
 
-  system func postupgrade() {
-    policies := HashMap.fromIter<Principal, Policy>(
-      policiesEntries.vals(), 10, Principal.equal, Principal.hash
-    );
-    policiesEntries := [];
-    userMap := HashMap.fromIter<Principal, Text>(
-      users.vals(), 10, Principal.equal, Principal.hash
-    );
-    users := [];
-    adminSet := Set.fromArray<Principal>(admins, Principal.equal, Principal.hash);
-    admins := [];
-  };
-
-  // Policy lifecycle functions
-  public shared(msg) func buyInsurance(coverage: Nat) : async Result {
-    if (coverage == 0) return #err(#InvalidAmount);
-    
-    let premium = coverage / 10; // 10% of coverage amount
-    let policy : Policy = {
-      customer = msg.caller;
-      premium = premium;
-      coverage = coverage;
-      active = false;
-      paidOut = false;
-      timestamp = Time.now();
-    };
-
-    policies.put(msg.caller, policy);
-    #ok("Insurance policy created. Please activate when ready.")
-  };
+  // Policy lifecycle functions - buyInsurance is defined below with enhanced error handling
 
   public shared(msg) func activatePolicy() : async Result {
     switch (policies.get(msg.caller)) {
@@ -274,7 +234,7 @@ actor Main {
   public shared(msg) func deactivatePolicy() : async Result {
     switch (policies.get(msg.caller)) {
       case (?policy) {
-        if (!policy.active) return #err(#PolicyAlreadyActive);
+        if (not policy.active) return #err(#PolicyAlreadyActive);
         if (policy.paidOut) return #err(#PolicyAlreadyPaidOut);
         let updated = {
           policy with active = false;
@@ -288,27 +248,7 @@ actor Main {
     }
   };
 
-  public shared(msg) func triggerPayout() : async Result {
-    switch (policies.get(msg.caller)) {
-      case (?policy) {
-        if (!policy.active) return #err(#NoPolicyFound);
-        if (policy.paidOut) return #err(#PolicyAlreadyPaidOut);
-        if (currentFloodLevel < floodThreshold) return #err(#FloodLevelBelowThreshold);
-        if (contractBalance < policy.coverage) return #err(#PayoutFailed);
-        
-        // Process payout
-        contractBalance -= policy.coverage;
-        let updated = {
-          policy with paidOut = true;
-        };
-        policies.put(msg.caller, updated);
-        #ok("Payout processed successfully")
-      };
-      case null {
-        #err(#NoPolicyFound)
-      };
-    }
-  };
+  // triggerPayout is defined below with enhanced error handling
 
   public shared query(msg) func getMyPolicy() : async ?Policy {
     policies.get(msg.caller)
@@ -350,7 +290,7 @@ actor Main {
   public shared(msg) func payPremium() : async Result {
     switch (policies.get(msg.caller)) {
       case (?policy) {
-        if (!policy.active) return #err(#NoPolicyFound);
+        if (not policy.active) return #err(#NoPolicyFound);
         if (policy.paidOut) return #err(#PolicyAlreadyPaidOut);
         
         // In a real implementation, this would transfer ICP from caller
@@ -419,14 +359,6 @@ actor Main {
   };
 
   // Placeholder for hello function (to be removed later)
-  // Logging functions
-  func logError(err: Error, context: Text) {
-    Debug.print("Error [" # context # "]: " # debug_show(err));
-  };
-
-  func logEvent(event: Text, details: Text) {
-    Debug.print("Event [" # event # "]: " # details);
-  };
 
   // Enhanced error handling for key functions
   public shared(msg) func buyInsurance(coverage: Nat) : async Result {
@@ -459,7 +391,7 @@ actor Main {
     try {
       switch (policies.get(msg.caller)) {
         case (?policy) {
-          if (!policy.active) {
+          if (not policy.active) {
             logError(#NoPolicyFound, "triggerPayout: policy not active");
             return #err(#NoPolicyFound);
           };
