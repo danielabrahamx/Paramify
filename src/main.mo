@@ -286,6 +286,23 @@ actor Main {
     await checkForPayouts()
   };
 
+  // Threshold management and stats
+  public query func getThreshold() : async Nat {
+    floodThreshold
+  };
+
+  public query func getThresholdInFeet() : async Nat {
+    floodThreshold / 304
+  };
+
+  public shared(msg) func setThreshold(threshold: Nat) : async Result {
+    if (msg.caller != owner) return #err(#NotAuthorized);
+    if (threshold == 0) return #err(#InvalidThreshold);
+    floodThreshold := threshold;
+    logEvent("ThresholdUpdated", "New threshold: " # Nat.toText(threshold));
+    #ok("Threshold updated")
+  };
+
   // Fund management functions
   public shared(msg) func payPremium() : async Result {
     switch (policies.get(msg.caller)) {
@@ -425,6 +442,51 @@ actor Main {
       logError(#PayoutFailed, "triggerPayout error: " # Error.message(e));
       #err(#PayoutFailed)
     }
+  };
+
+  // Query other principals' policy
+  public query func getPolicy(p: Principal) : async ?Policy {
+    policies.get(p)
+  };
+
+  // Check payout eligibility for a given principal
+  public query func isPayoutEligible(p: Principal) : async Bool {
+    switch (policies.get(p)) {
+      case (?policy) {
+        policy.active and not policy.paidOut and currentFloodLevel >= floodThreshold and contractBalance >= policy.coverage
+      };
+      case null { false };
+    }
+  };
+
+  // Compute and return stats snapshot
+  public query func getStats() : async Stats {
+    var total : Nat = 0;
+    var active : Nat = 0;
+    var paid : Nat = 0;
+    for ((_, policy) in policies.entries()) {
+      total += 1;
+      if (policy.active) { active += 1 };
+      if (policy.paidOut) { paid += 1 };
+    };
+    {
+      totalPolicies = total;
+      activePolicies = active;
+      totalPayouts = paid;
+      contractBalance = contractBalance;
+      currentFloodLevel = currentFloodLevel;
+      floodThreshold = floodThreshold;
+      lastOracleUpdate = lastOracleUpdate;
+    }
+  };
+
+  // Ownership transfer
+  public shared(msg) func transferOwnership(newOwner: Principal) : async Result {
+    if (msg.caller != owner) return #err(#NotAuthorized);
+    if (newOwner == owner) return #err(#InvalidPrincipal);
+    owner := newOwner;
+    logEvent("OwnershipTransferred", "New owner: " # Principal.toText(newOwner));
+    #ok("Ownership transferred")
   };
 
   public query func hello() : async Text {

@@ -3,18 +3,18 @@ import { Actor, HttpAgent, Identity } from '@dfinity/agent';
 import { Principal } from '@dfinity/principal';
 
 // Canister IDs (will be populated after deployment)
-const PARAMIFY_BACKEND_CANISTER_ID = process.env.VITE_PARAMIFY_BACKEND_CANISTER_ID || '';
-const ORACLE_SERVICE_CANISTER_ID = process.env.VITE_ORACLE_SERVICE_CANISTER_ID || '';
+const PARAMIFY_BACKEND_CANISTER_ID = import.meta.env.VITE_PARAMIFY_BACKEND_CANISTER_ID || '';
+const ORACLE_SERVICE_CANISTER_ID = import.meta.env.VITE_ORACLE_SERVICE_CANISTER_ID || '';
 
 // Local or mainnet URL
-const HOST = process.env.VITE_DFX_NETWORK === 'ic' 
+const HOST = import.meta.env.VITE_DFX_NETWORK === 'ic' 
   ? 'https://ic0.app' 
   : 'http://127.0.0.1:4943';
 
 // Internet Identity URL
-const IDENTITY_PROVIDER = process.env.VITE_DFX_NETWORK === 'ic'
+const IDENTITY_PROVIDER = import.meta.env.VITE_DFX_NETWORK === 'ic'
   ? 'https://identity.ic0.app'
-  : `http://127.0.0.1:4943?canisterId=${process.env.VITE_INTERNET_IDENTITY_CANISTER_ID}`;
+  : `http://127.0.0.1:4943?canisterId=${import.meta.env.VITE_INTERNET_IDENTITY_CANISTER_ID}`;
 
 // Paramify Backend Interface (IDL)
 const paramifyBackendIDL = ({ IDL }: any) => {
@@ -138,7 +138,7 @@ class ICPService {
     });
 
     // When developing locally, we need to disable certificate verification
-    if (process.env.VITE_DFX_NETWORK !== 'ic') {
+    if (import.meta.env.VITE_DFX_NETWORK !== 'ic') {
       await this.agent.fetchRootKey();
     }
 
