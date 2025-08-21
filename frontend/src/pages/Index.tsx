@@ -2,10 +2,11 @@ import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Wallet, Building2, Shield, Waves, TrendingUp, Users, Menu, Home, Info, Mail } from "lucide-react";
+import { Wallet, Building2, Shield, Waves, TrendingUp, Users, Menu, Home, Info, Mail, LogIn, LogOut } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import InsuracleDashboard from '@/InsuracleDashboard'; 
-import InsuracleDashboardAdmin from '@/InsuracleDashboardAdmin'; 
+import { useAuth } from "@/components/InternetIdentityProvider";
+import InsuracleDashboard from '@/InsuracleDashboard';
+import InsuracleDashboardAdmin from '@/InsuracleDashboardAdmin';
 import {
   Menubar,
   MenubarContent,
@@ -14,44 +15,24 @@ import {
   MenubarTrigger,
 } from "@/components/ui/menubar";
 
-declare global {
-  interface Window {
-    ethereum?: any;
-  }
-}
-
 const Index = () => {
-  const [walletAddress, setWalletAddress] = useState<string>("");
-  const [isConnected, setIsConnected] = useState(false);
   const [userType, setUserType] = useState<"individual" | "company" | null>(null);
+  const { isAuthenticated, principal, login, logout, isLoading } = useAuth();
   const { toast } = useToast();
 
-  const connectWallet = async () => {
-    if (typeof window.ethereum !== 'undefined') {
-      try {
-        const accounts = await window.ethereum.request({
-          method: 'eth_request_accounts'
-        });
-        setWalletAddress(accounts[0]);
-        setIsConnected(true);
-        toast({
-          title: "Wallet Connected",
-          description: `Connected to ${accounts[0].slice(0, 6)}...${accounts[0].slice(-4)}`,
-        });
-      } catch (error) {
-        toast({
-          title: "Connection Failed",
-          description: "Failed to connect to MetaMask wallet",
-          variant: "destructive",
-        });
-      }
-    } else {
+  const handleLogin = async () => {
+    const success = await login();
+    if (success) {
       toast({
-        title: "MetaMask Not Found",
-        description: "Please install MetaMask to connect your wallet",
-        variant: "destructive",
+        title: "Connected to Internet Identity",
+        description: "You can now access Paramify services",
       });
     }
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    setUserType(null);
   };
 
   const handleAccessType = (type: "individual" | "company") => {
@@ -70,41 +51,74 @@ const Index = () => {
     <div className="min-h-screen gradient-bg">
       <div className="bg-gradient-to-r from-purple-900 to-red-900 border-b border-white/10">
         <div className="container mx-auto px-4">
-          <Menubar className="bg-transparent border-none h-14">
-            <MenubarMenu>
-              <MenubarTrigger className="text-white hover:bg-white/10 data-[state=open]:bg-white/10">
-                <Home className="mr-2 h-4 w-4" />
-                Home
-              </MenubarTrigger>
-            </MenubarMenu>
-            <MenubarMenu>
-              <MenubarTrigger className="text-white hover:bg-white/10 data-[state=open]:bg-white/10">
-                <Info className="mr-2 h-4 w-4" />
-                About
-              </MenubarTrigger>
-              <MenubarContent className="bg-gray-900 border-gray-700">
-                <MenubarItem className="text-white hover:bg-gray-800">Company Info</MenubarItem>
-                <MenubarItem className="text-white hover:bg-gray-800">How It Works</MenubarItem>
-                <MenubarItem className="text-white hover:bg-gray-800">Technology</MenubarItem>
-              </MenubarContent>
-            </MenubarMenu>
-            <MenubarMenu>
-              <MenubarTrigger className="text-white hover:bg-white/10 data-[state=open]:bg-white/10">
-                Services
-              </MenubarTrigger>
-              <MenubarContent className="bg-gray-900 border-gray-700">
-                <MenubarItem className="text-white hover:bg-gray-800">Individual Insurance</MenubarItem>
-                <MenubarItem className="text-white hover:bg-gray-800">Business Solutions</MenubarItem>
-                <MenubarItem className="text-white hover:bg-gray-800">API Access</MenubarItem>
-              </MenubarContent>
-            </MenubarMenu>
-            <MenubarMenu>
-              <MenubarTrigger className="text-white hover:bg-white/10 data-[state=open]:bg-white/10">
-                <Mail className="mr-2 h-4 w-4" />
-                Contact
-              </MenubarTrigger>
-            </MenubarMenu>
-          </Menubar>
+          <div className="flex justify-between items-center h-14">
+            <Menubar className="bg-transparent border-none">
+              <MenubarMenu>
+                <MenubarTrigger className="text-white hover:bg-white/10 data-[state=open]:bg-white/10">
+                  <Home className="mr-2 h-4 w-4" />
+                  Home
+                </MenubarTrigger>
+              </MenubarMenu>
+              <MenubarMenu>
+                <MenubarTrigger className="text-white hover:bg-white/10 data-[state=open]:bg-white/10">
+                  <Info className="mr-2 h-4 w-4" />
+                  About
+                </MenubarTrigger>
+                <MenubarContent className="bg-gray-900 border-gray-700">
+                  <MenubarItem className="text-white hover:bg-gray-800">Company Info</MenubarItem>
+                  <MenubarItem className="text-white hover:bg-gray-800">How It Works</MenubarItem>
+                  <MenubarItem className="text-white hover:bg-gray-800">Technology</MenubarItem>
+                </MenubarContent>
+              </MenubarMenu>
+              <MenubarMenu>
+                <MenubarTrigger className="text-white hover:bg-white/10 data-[state=open]:bg-white/10">
+                  Services
+                </MenubarTrigger>
+                <MenubarContent className="bg-gray-900 border-gray-700">
+                  <MenubarItem className="text-white hover:bg-gray-800">Individual Insurance</MenubarItem>
+                  <MenubarItem className="text-white hover:bg-gray-800">Business Solutions</MenubarItem>
+                  <MenubarItem className="text-white hover:bg-gray-800">API Access</MenubarItem>
+                </MenubarContent>
+              </MenubarMenu>
+              <MenubarMenu>
+                <MenubarTrigger className="text-white hover:bg-white/10 data-[state=open]:bg-white/10">
+                  <Mail className="mr-2 h-4 w-4" />
+                  Contact
+                </MenubarTrigger>
+              </MenubarMenu>
+            </Menubar>
+
+            {/* Authentication Section */}
+            <div className="flex items-center space-x-4">
+              {isAuthenticated && principal && (
+                <div className="text-white text-sm">
+                  Connected as: {principal.toText().slice(0, 10)}...
+                </div>
+              )}
+
+              {isAuthenticated ? (
+                <Button
+                  onClick={handleLogout}
+                  variant="outline"
+                  size="sm"
+                  className="text-white border-white/20 hover:bg-white/10"
+                >
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Logout
+                </Button>
+              ) : (
+                <Button
+                  onClick={handleLogin}
+                  disabled={isLoading}
+                  size="sm"
+                  className="bg-white text-purple-900 hover:bg-gray-100"
+                >
+                  <LogIn className="mr-2 h-4 w-4" />
+                  {isLoading ? "Connecting..." : "Connect Identity"}
+                </Button>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -162,15 +176,16 @@ const Index = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Button 
+              <Button
                 onClick={() => handleAccessType("individual")}
-                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white text-lg py-6"
+                disabled={!isAuthenticated}
+                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white text-lg py-6 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Wallet className="mr-2 h-5 w-5" />
-                Access Individual Portal
+                {isAuthenticated ? "Access Individual Portal" : "Connect Identity First"}
               </Button>
               <div className="mt-4 text-white/80 text-sm">
-                • Connect your wallet • Buy insurance coverage • Manage claims
+                • Connect your identity • Buy insurance coverage • Manage claims
               </div>
             </CardContent>
           </Card>
@@ -186,12 +201,13 @@ const Index = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Button 
+              <Button
                 onClick={() => handleAccessType("company")}
-                className="w-full bg-gradient-to-r from-pink-500 to-red-500 hover:from-pink-600 hover:to-red-600 text-white text-lg py-6"
+                disabled={!isAuthenticated}
+                className="w-full bg-gradient-to-r from-pink-500 to-red-500 hover:from-pink-600 hover:to-red-600 text-white text-lg py-6 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Building2 className="mr-2 h-5 w-5" />
-                Admin Dashboard
+                {isAuthenticated ? "Admin Dashboard" : "Connect Identity First"}
               </Button>
               <div className="mt-4 text-white/80 text-sm">
                 • API access • Risk analytics • White-label solutions
