@@ -269,11 +269,13 @@ actor Main {
           };
           policies.put(principal, updated);
           payoutCount += 1;
+          logEvent("AutoPayoutProcessed", "Customer: " # Principal.toText(principal) # " Amount: " # Nat.toText(policy.coverage));
         };
       };
     };
 
     if (payoutCount > 0) {
+      logEvent("AutoPayoutsCompleted", Nat.toText(payoutCount) # " payouts processed");
       #ok(Nat.toText(payoutCount) # " payouts processed successfully")
     } else {
       #ok("No eligible payouts found")
@@ -307,12 +309,13 @@ actor Main {
   public shared(msg) func payPremium() : async Result {
     switch (policies.get(msg.caller)) {
       case (?policy) {
-        if (not policy.active) return #err(#NoPolicyFound);
+        if (not policy.active) return #err(#PolicyAlreadyActive);
         if (policy.paidOut) return #err(#PolicyAlreadyPaidOut);
         
         // In a real implementation, this would transfer ICP from caller
         // For now we'll just simulate the premium payment
         contractBalance += policy.premium;
+        logEvent("PremiumPaid", "Customer: " # Principal.toText(msg.caller) # " Amount: " # Nat.toText(policy.premium));
         #ok("Premium payment processed")
       };
       case null {
@@ -383,6 +386,12 @@ actor Main {
       if (coverage == 0) {
         logError(#InvalidAmount, "buyInsurance: zero coverage");
         return #err(#InvalidAmount);
+      };
+      
+      // Check if user already has a policy
+      if (policies.get(msg.caller) != null) {
+        logError(#PolicyAlreadyActive, "buyInsurance: user already has policy");
+        return #err(#PolicyAlreadyActive);
       };
       
       let premium = coverage / 10;
