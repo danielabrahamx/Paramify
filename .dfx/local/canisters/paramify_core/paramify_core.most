@@ -1,0 +1,20 @@
+// Version: 1.0.0
+type Policy__1432446 =
+  {
+    coverageAmount : Nat;
+    endTime : Time__1023104654;
+    hasClaimed : Bool;
+    isActive : Bool;
+    policyHolder : Principal;
+    premiumAmount : Nat;
+    startTime : Time__1023104654
+  };
+type Time__1023104654 = Int;
+actor {
+  stable DEFAULT_ADMIN : Principal;
+  stable var adminsEntries : [Principal];
+  stable var currentFloodLevel : Nat;
+  stable var floodThreshold : Nat;
+  stable var oracleUpdater : ?Principal;
+  stable var policiesEntries : [(Principal, Policy__1432446)]
+};

@@ -1,0 +1,7 @@
+// Version: 1.0.0
+actor {
+  stable var coreCanisterId : ?Principal;
+  stable var lastError : Text;
+  stable var lastFloodLevel : Nat;
+  stable var lastUpdate : Int
+};

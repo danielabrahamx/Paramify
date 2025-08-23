@@ -1,10 +1,20 @@
 {
-"version": 1,
-"dfx": "0.18.0",
-"canisters": {
-"main": {
-"type": "motoko",
-"main": "src/main.mo" 
-}
-}
+  "version": 1,
+  "dfx": "0.18.0",
+  "canisters": {
+    "paramify_core": {
+      "type": "motoko",
+      "main": "src/paramify_core/main.mo"
+    },
+    "paramify_oracle": {
+      "type": "motoko",
+      "main": "src/paramify_oracle/main.mo"
+    }
+  },
+  "defaults": {
+    "build": {
+      "packtool": "",
+      "args": ""
+    }
+  }
 }

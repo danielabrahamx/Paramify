@@ -1,0 +1,38 @@
+type Time = int;
+type Result_2 = 
+ variant {
+   err: text;
+   ok: principal;
+ };
+type Result_1 = 
+ variant {
+   err: text;
+   ok: nat;
+ };
+type Result = 
+ variant {
+   err: text;
+   ok;
+ };
+type Policy = 
+ record {
+   coverageAmount: nat;
+   endTime: Time;
+   hasClaimed: bool;
+   isActive: bool;
+   policyHolder: principal;
+   premiumAmount: nat;
+   startTime: Time;
+ };
+service : {
+  addAdmin: (newAdmin: principal) -> (Result);
+  buyInsurance: (coverage: nat, duration: nat) -> (Result_2);
+  claimPayout: (policyId: principal) -> (Result_1);
+  getCurrentFloodLevel: () -> (nat) query;
+  getFloodThreshold: () -> (nat) query;
+  getPolicy: (policyId: principal) -> (opt Policy) query;
+  removeAdmin: (adminToRemove: principal) -> (Result);
+  setFloodThreshold: (threshold: nat) -> (Result);
+  setOracleUpdater: (updater: principal) -> (Result);
+  updateFloodLevel: (level: nat) -> (Result);
+}

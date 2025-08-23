@@ -1,0 +1,28 @@
+type TransformArgs = 
+ record {
+   context: blob;
+   response: HttpResponse;
+ };
+type Result = 
+ variant {
+   err: text;
+   ok;
+ };
+type HttpResponse = 
+ record {
+   body: blob;
+   headers: vec HeaderField;
+   status: nat;
+ };
+type HeaderField = 
+ record {
+   name: text;
+   value: text;
+ };
+service : {
+  getLastError: () -> (text) query;
+  getLatestFloodData: () -> (nat) query;
+  manualUpdate: () -> (Result);
+  setCoreCanister: (id: principal) -> ();
+  transform: (raw: TransformArgs) -> (HttpResponse) query;
+}
