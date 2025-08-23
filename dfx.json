@@ -9,6 +9,16 @@
     "paramify_oracle": {
       "type": "motoko",
       "main": "src/paramify_oracle/main.mo"
+    },
+    "paramify_frontend": {
+      "type": "assets",
+      "source": [
+        "frontend/dist"
+      ],
+      "build": [
+        "npm --prefix frontend ci",
+        "npm --prefix frontend run build"
+      ]
     }
   },
   "defaults": {

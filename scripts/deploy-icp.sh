@@ -69,7 +69,7 @@ fi
 # Initialize oracle with core canister ID
 echo ""
 echo "🔗 Initializing oracle with core canister..."
-dfx canister call paramify_oracle setCoreCanisterId "(\"$CORE_ID\")"
+dfx canister call paramify_oracle setCoreCanister "(principal \"$CORE_ID\")"
 
 if [ $? -eq 0 ]; then
     echo "✅ Oracle initialized with core canister"
@@ -124,7 +124,7 @@ echo "   http://127.0.0.1:4943/?canisterId=$FRONTEND_ID"
 echo ""
 echo "🔧 Test canister functions:"
 echo "   dfx canister call paramify_core getFloodThreshold"
-echo "   dfx canister call paramify_oracle getStatus"
+echo "   dfx canister call paramify_oracle getLastError"
 echo ""
 echo "📱 Start oracle updates:"
-echo "   dfx canister call paramify_oracle startUpdates"
+echo "   dfx canister call paramify_oracle manualUpdate"

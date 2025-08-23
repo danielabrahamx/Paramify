@@ -9,10 +9,11 @@ import Principal "mo:base/Principal";
 import Buffer "mo:base/Buffer";
 import Char "mo:base/Char";
 import Iter "mo:base/Iter";
+import Nat64 "mo:base/Nat64";
 
 // Move types inside actor
 
-persistent actor {
+actor {
   // HTTP types
   type HeaderField = {name : Text; value : Text};
   type HttpMethod = {#get; #head; #post};

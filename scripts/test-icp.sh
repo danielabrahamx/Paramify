@@ -62,8 +62,8 @@ if [ -n "$ORACLE_ID" ]; then
     echo ""
     echo "🧪 Testing oracle canister functions..."
     
-    echo "   Getting oracle status..."
-    dfx canister call paramify_oracle getStatus
+    echo "   Getting oracle last error..."
+    dfx canister call paramify_oracle getLastError
 fi
 
 echo ""

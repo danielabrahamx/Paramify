@@ -84,10 +84,10 @@ echo "   Setting oracle as updater..."
 dfx canister call paramify_core setOracleUpdater "(\"$ORACLE_ID\")"
 
 echo "   Setting oracle core canister ID..."
-dfx canister call paramify_oracle setCoreCanisterId "(\"$CORE_ID\")"
+dfx canister call paramify_oracle setCoreCanister "(principal \"$CORE_ID\")"
 
-echo "   Starting oracle updates..."
-dfx canister call paramify_oracle startUpdates
+echo "   Triggering manual oracle update..."
+dfx canister call paramify_oracle manualUpdate
 
 # Test the canisters
 echo ""
@@ -96,8 +96,8 @@ echo "🧪 Testing canisters..."
 echo "   Core canister flood threshold:"
 dfx canister call paramify_core getFloodThreshold
 
-echo "   Oracle canister status:"
-dfx canister call paramify_oracle getStatus
+echo "   Oracle canister last error:"
+dfx canister call paramify_oracle getLastError
 
 # Display results
 echo ""
@@ -112,5 +112,5 @@ echo "   http://127.0.0.1:4943/?canisterId=$FRONTEND_ID"
 echo ""
 echo "🔧 Test commands:"
 echo "   dfx canister call paramify_core getFloodThreshold"
-echo "   dfx canister call paramify_oracle getStatus"
+echo "   dfx canister call paramify_oracle getLastError"
 echo "   dfx canister call paramify_oracle manualUpdate"

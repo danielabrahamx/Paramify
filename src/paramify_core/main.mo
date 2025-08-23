@@ -5,8 +5,10 @@ import Nat "mo:base/Nat";
 import Result "mo:base/Result";
 import Map "mo:base/HashMap";
 import Iter "mo:base/Iter";
+import Text "mo:base/Text";
+import Debug "mo:base/Debug";
 
-persistent actor {
+actor {
   type Policy = {
     policyHolder: Principal;
     coverageAmount: Nat;
@@ -25,10 +27,13 @@ persistent actor {
   stable var currentFloodLevel: Nat = 0;
 
   // Runtime variables (not stable)
-  flexible var policies = Map.HashMap<Principal, Policy>(0, Principal.equal, Principal.hash);
-  flexible var admins = Buffer.Buffer<Principal>(0);
+  var policies = Map.HashMap<Principal, Policy>(0, Principal.equal, Principal.hash);
+  var admins = Buffer.Buffer<Principal>(0);
 
-  let DEFAULT_ADMIN = Principal.fromText("aaaaa-aa"); // Replace with actual default admin principal
+  // No hardcoded default admin; the first caller of an admin method becomes admin.
+  private func ensureBootstrap(caller: Principal) {
+    if (admins.size() == 0) { admins.add(caller) };
+  };
 
   system func preupgrade() {
     // Convert runtime data to stable format
@@ -44,13 +49,11 @@ persistent actor {
     for (admin in adminsEntries.vals()) {
       admins.add(admin);
     };
-    // Add default admin if none exists
-    if (admins.size() == 0) {
-      admins.add(DEFAULT_ADMIN);
-    };
+    // No default admin; bootstrap happens on first admin call.
   };
 
   public shared(msg) func addAdmin(newAdmin: Principal) : async Result.Result<(), Text> {
+    ensureBootstrap(msg.caller);
     if (not isAdmin(msg.caller)) {
       return #err("Caller is not an admin");
     };
@@ -59,6 +62,7 @@ persistent actor {
   };
 
   public shared(msg) func removeAdmin(adminToRemove: Principal) : async Result.Result<(), Text> {
+    ensureBootstrap(msg.caller);
     if (not isAdmin(msg.caller)) {
       return #err("Caller is not an admin");
     };
@@ -73,6 +77,7 @@ persistent actor {
   };
 
   public shared(msg) func setOracleUpdater(updater: Principal) : async Result.Result<(), Text> {
+    ensureBootstrap(msg.caller);
     if (not isAdmin(msg.caller)) {
       return #err("Caller is not an admin");
     };
@@ -81,6 +86,7 @@ persistent actor {
   };
 
   public shared(msg) func setFloodThreshold(threshold: Nat) : async Result.Result<(), Text> {
+    ensureBootstrap(msg.caller);
     if (not isAdmin(msg.caller)) {
       return #err("Caller is not an admin");
     };
