@@ -53,6 +53,25 @@ actor {
     null
   };
 
+  private func isNumericChar(c: Char) : Bool {
+    c == '0' or c == '1' or c == '2' or c == '3' or c == '4' or
+    c == '5' or c == '6' or c == '7' or c == '8' or c == '9' or
+    c == '.'
+  };
+
+  private func looksLikeNumber(t: Text) : Bool {
+    if (Text.size(t) == 0) { return false };
+    var hasDigit = false;
+    for (c in Text.toIter(t)) {
+      if (isNumericChar(c)) {
+        if (c != '.') { hasDigit := true };
+      } else {
+        return false;
+      };
+    };
+    hasDigit
+  };
+
   private func subText(text: Text, start: Nat, len: Nat) : Text {
     let chars = Text.toIter(text);
     let buf = Buffer.Buffer<Char>(len);
@@ -125,46 +144,83 @@ actor {
         case (?dt) { dt };
       };
 
-      // Simple parsing: extract the first "value" from timeSeries.values.value
-      // This is a basic string search; for production, use a proper JSON parser
-      let value_prefix = "\"value\":\"";
-      let value_suffix = "\"";
+      // Parse the JSON response to extract the flood level
+      // Look for the first "value":" followed by a number in the timeSeries data
+      let value_pattern = "\"value\":[\"{\"\"value\":\"";
+      let value_parts = Iter.toArray(Text.split(decoded_text, #text("\"value\":")));
+
       var level_str = "";
-      let parts = Iter.toArray(Text.split(decoded_text, #text(value_prefix)));
-      if (parts.size() > 1) {
-        let after_prefix = parts[1];
-        let value_parts = Iter.toArray(Text.split(after_prefix, #text(value_suffix)));
-        if (value_parts.size() > 0) {
-          level_str := value_parts[0];
+      if (value_parts.size() > 1) {
+        // Find the first numeric value after "value":
+        for (part in value_parts.vals()) {
+          if (Text.size(part) > 0) {
+            // Look for pattern: "number" followed by optional qualifiers
+            let number_end = switch (findCharIndex(part, '"')) {
+              case (null) { Text.size(part) };
+              case (?idx) { idx };
+            };
+            if (number_end > 0) {
+              let potential_number = subText(part, 1, number_end - 1); // Skip the opening quote
+              // Check if it looks like a number (contains digits and optional decimal point)
+              if (looksLikeNumber(potential_number)) {
+                level_str := potential_number;
+              };
+            };
+          };
         };
       };
 
       if (Text.equal(level_str, "")) {
-        throw Error.reject("Could not parse gauge height");
+        // Fallback: try a simpler approach
+        let simple_pattern = "\"value\":\"";
+        let simple_parts = Iter.toArray(Text.split(decoded_text, #text(simple_pattern)));
+        if (simple_parts.size() > 1) {
+          let after_pattern = simple_parts[1];
+          let end_quote = switch (findCharIndex(after_pattern, '"')) {
+            case (null) { Text.size(after_pattern) };
+            case (?idx) { idx };
+          };
+          if (end_quote > 0) {
+            level_str := subText(after_pattern, 0, end_quote);
+          };
+        };
       };
 
-      // Assuming value is like "3.50", convert to Nat as 350 (times 100)
-      // Adjust scaling as needed
+      if (Text.equal(level_str, "")) {
+        throw Error.reject("Could not parse gauge height from USGS response");
+      };
+
+      // Convert the flood level string to a number
+      // Handle decimal numbers like "1.43"
       let dot_index = switch (findCharIndex(level_str, '.')) {
-        case (null) { return #err("Invalid number format") };
-        case (?idx) { idx };
-      };
-      let integer_part = subText(level_str, 0, dot_index);
-      let decimal_part = subText(level_str, dot_index + 1, Text.size(level_str) - dot_index - 1);
-      let integer = switch (Nat.fromText(integer_part)) {
-        case (null) { return #err("Invalid integer part") };
-        case (?n) { n };
-      };
-      let decimal = switch (Nat.fromText(decimal_part)) {
-        case (null) { return #err("Invalid decimal part") };
-        case (?n) { n };
-      };
-      let scale = if (Text.size(decimal_part) == 1) { 10 } else { 100 };
-      let level = integer * scale + decimal;
+        case (null) {
+          // No decimal point, treat as integer
+          let level = switch (Nat.fromText(level_str)) {
+            case (null) { return #err("Invalid flood level format: " # level_str) };
+            case (?n) { n };
+          };
+          lastFloodLevel := level * 100_000_000_000; // Convert feet to contract units
+        };
+        case (?idx) {
+          // Has decimal point, parse integer and decimal parts
+          let integer_part = subText(level_str, 0, idx);
+          let decimal_part = subText(level_str, idx + 1, Text.size(level_str) - idx - 1);
 
-      // Scale to match simulation (e.g., 3.5 -> 350000000000)
-      // Assuming simulation uses some large unit; adjust accordingly
-      lastFloodLevel := level * 100_000_000_000; // Example scaling
+          let integer = switch (Nat.fromText(integer_part)) {
+            case (null) { return #err("Invalid integer part: " # integer_part) };
+            case (?n) { n };
+          };
+
+          let decimal = switch (Nat.fromText(decimal_part)) {
+            case (null) { 0 }; // Default to 0 if decimal parsing fails
+            case (?n) { n };
+          };
+
+          // Convert to contract units (multiply by 100_000_000_000 for precision)
+          let level = integer * 100_000_000_000 + decimal * 10_000_000_000;
+          lastFloodLevel := level;
+        };
+      };
 
       lastUpdate := Time.now();
       lastError := "";

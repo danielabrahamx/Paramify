@@ -1,6 +1,5 @@
-import axios from 'axios';
-
-const API_BASE_URL = 'http://localhost:3001/api';
+// Backend API endpoints (not direct ICP calls)
+const BACKEND_API_URL = 'http://172.27.83.17:3001/api';
 
 export interface FloodData {
   value: number | null;
@@ -36,41 +35,135 @@ export interface ServiceStatus {
 export const usgsApi = {
   async getFloodData(): Promise<FloodData> {
     try {
-      const response = await axios.get<FloodData>(`${API_BASE_URL}/flood-data`);
-      return response.data;
+      // Call the backend API instead of direct ICP calls
+      const response = await fetch(`${BACKEND_API_URL}/flood-data`);
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      return {
+        value: data.value,
+        timestamp: data.timestamp,
+        lastUpdate: data.lastUpdate,
+        status: data.status,
+        error: data.error,
+        source: data.source,
+        siteInfo: data.siteInfo
+      };
     } catch (error) {
-      console.error('Error fetching flood data:', error);
-      throw error;
+      console.error('Error fetching flood data from backend API:', error);
+      return {
+        value: null,
+        timestamp: null,
+        lastUpdate: null,
+        status: "error",
+        error: error instanceof Error ? error.message : 'Unknown error',
+        source: "Backend API",
+        siteInfo: {
+          name: "Mississippi River at Memphis",
+          siteId: "07032000"
+        }
+      };
     }
   },
 
   async getStatus(): Promise<ServiceStatus> {
     try {
-      const response = await axios.get<ServiceStatus>(`${API_BASE_URL}/status`);
-      return response.data;
+      // Call the backend API status endpoint
+      const response = await fetch(`${BACKEND_API_URL}/status`);
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      return {
+        service: data.service,
+        lastUpdate: data.lastUpdate,
+        currentFloodLevel: data.currentFloodLevel,
+        oracleValue: data.oracleValue,
+        dataSource: data.dataSource,
+        site: data.site,
+        updateInterval: data.updateInterval,
+        nextUpdate: data.nextUpdate,
+        threshold: data.threshold
+      };
     } catch (error) {
-      console.error('Error fetching service status:', error);
-      throw error;
+      console.error('Error fetching service status from backend API:', error);
+      return {
+        service: "ICP Flood Insurance Oracle",
+        lastUpdate: null,
+        currentFloodLevel: null,
+        oracleValue: null,
+        dataSource: "USGS API via ICP Oracle",
+        site: {
+          name: "Mississippi River at Memphis",
+          siteId: "07032000"
+        },
+        updateInterval: "5 minutes",
+        nextUpdate: null,
+        threshold: {
+          thresholdFeet: 12,
+          thresholdUnits: 1200000000000
+        }
+      };
     }
   },
 
   async triggerManualUpdate(): Promise<{ success: boolean; message: string; data: FloodData }> {
     try {
-      const response = await axios.post(`${API_BASE_URL}/manual-update`);
-      return response.data;
+      const response = await fetch(`${BACKEND_API_URL}/manual-update`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+
+      return {
+        success: result.success,
+        message: result.message,
+        data: await this.getFloodData()
+      };
     } catch (error) {
       console.error('Error triggering manual update:', error);
-      throw error;
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Update failed',
+        data: await this.getFloodData()
+      };
     }
   },
 
   async checkHealth(): Promise<{ status: string; message: string; timestamp: string }> {
     try {
-      const response = await axios.get(`${API_BASE_URL}/health`);
-      return response.data;
+      const response = await fetch(`${BACKEND_API_URL}/health`);
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+
+      return {
+        status: result.status,
+        message: result.message,
+        timestamp: result.timestamp
+      };
     } catch (error) {
-      console.error('Error checking API health:', error);
-      throw error;
+      console.error('Error checking backend API health:', error);
+      return {
+        status: "error",
+        message: `Backend API communication failed: ${error}`,
+        timestamp: new Date().toISOString()
+      };
     }
   },
 };
