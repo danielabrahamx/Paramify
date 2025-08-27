@@ -1,70 +1,50 @@
 # 🌊 Paramify - Flood Insurance dApp
 
-A hybrid decentralized insurance application combining **Internet Computer (ICP)** canisters with **Ethereum** smart contracts for flood insurance with real-time USGS flood data integration.
+A hybrid decentralized insurance platform with **Ethereum smart contracts** for blockchain settlement and **Node.js backend** for real-time USGS flood data integration. Features a beautiful React frontend with modern UI components.
 
 ## 🏗️ Architecture Overview
 
-### Hybrid Architecture (ICP + Ethereum)
-- **ICP Canisters**: Handle insurance logic, policy management, and external API calls
-- **Ethereum Smart Contracts**: Provide blockchain settlement and oracle data verification
-- **Backend API**: Bridges frontend with ICP canisters using proper Candid interface
-- **Frontend**: React application with beautiful UI and real-time flood monitoring
+### Current Implementation
+- **Ethereum Smart Contracts**: Core insurance logic and blockchain settlement (✅ Working)
+- **Node.js Backend API**: USGS flood data integration and API gateway (✅ Working)  
+- **React Frontend**: Modern UI with shadcn components and real-time monitoring (✅ Working)
+- **ICP Canister (paramify_data)**: Backend-only data storage and activity tracking (✅ Working)
 
 ### Components
 
-| Component | Technology | Purpose |
-|-----------|------------|---------|
-| **paramify_core** | ICP Motoko | Insurance policy management, payouts |
-| **paramify_oracle** | ICP Motoko | Fetch USGS flood data, update core canister |
-| **Backend API** | Node.js/Express | REST API for frontend ↔ ICP communication |
-| **Frontend** | React/TypeScript | User interface and flood monitoring dashboard |
-| **Smart Contracts** | Solidity (Hardhat) | Ethereum integration for settlement |
+| Component | Status | Technology | Purpose |
+|-----------|---------|------------|---------|
+| **Smart Contracts** | ✅ Working | Solidity (Hardhat) | Core insurance logic and blockchain settlement |
+| **Backend API** | ✅ Working | Node.js/Express | USGS flood data integration and API gateway |
+| **Frontend** | ✅ Working | React/TypeScript | Beautiful UI with real-time flood monitoring |
+| **ICP Canister** | ✅ Working | Motoko | `paramify_data`: data storage, activity tracking, simple policy ledger |
 
 ## 📋 Prerequisites
 
-- **Windows + WSL** or **Ubuntu Linux** (required for dfx)
 - **Node.js** 18+ and **npm**
-- **dfx** (Internet Computer SDK) 0.18.0+
 - **Hardhat** for smart contract deployment
+- **MetaMask** or compatible Web3 wallet
 - **Git** for cloning repositories
+- **WSL** (optional, for ICP development)
 
-## 🚀 Complete Deployment Guide
+## 🚀 Quick Start Guide
 
-### Phase 1: Environment Setup
-
-**1. Install Internet Computer SDK (in WSL):**
+### Step 1: Install Dependencies
 ```bash
-# In WSL terminal
-sh -ci "$(curl -fsSL https://internetcomputer.org/install.sh)"
-dfx --version  # Should show 0.18.0+
+# Install main project dependencies
+npm install
+
+# Install frontend dependencies
+cd frontend && npm install && cd ..
+
+# Install backend dependencies  
+cd backend && npm install && cd ..
 ```
 
-**2. Install Node.js dependencies:**
+### Step 2: Deploy Smart Contracts
+
+**Option A: Local Testing (Recommended)**
 ```bash
-# Main project dependencies
-npm install
-
-# Frontend dependencies
-cd frontend
-npm install
-cd ..
-
-# Backend dependencies
-cd backend
-npm install
-cd ..
-```
-
-### Phase 2: Deploy Smart Contracts
-
-**Option A: Deploy to PassetHub Testnet**
-```powershell
-# In PowerShell (Windows)
-npx hardhat run scripts/deploy.js --network passthrough
-```
-
-**Option B: Deploy to Local Hardhat Network (for testing)**
-```powershell
 # Terminal 1: Start local Hardhat node
 npx hardhat node
 
@@ -72,74 +52,33 @@ npx hardhat node
 npx hardhat run scripts/deploy.js --network localhost
 ```
 
-### Phase 3: Deploy ICP Canisters
-
-**1. Start ICP Local Replica:**
+**Option B: Deploy to PassetHub Testnet**
 ```bash
-# In WSL
-dfx start --background --clean
-sleep 10  # Wait for replica to start
+npx hardhat run scripts/deploy.js --network passthrough
 ```
 
-**2. Deploy Canisters:**
+### Step 3: Start Backend API
 ```bash
-# Deploy all canisters
-dfx deploy
-
-# Get canister IDs
-CORE_ID=$(dfx canister id paramify_core)
-ORACLE_ID=$(dfx canister id paramify_oracle)
-```
-
-**3. Configure Canister Integration:**
-```bash
-# Set oracle-core connection
-dfx canister call paramify_oracle setCoreCanister "(principal \"$CORE_ID\")"
-dfx canister call paramify_core setOracleUpdater "(principal \"$ORACLE_ID\")"
-
-# Set flood threshold (12 feet)
-dfx canister call paramify_core setFloodThreshold "(1200000000000:nat)"
-```
-
-### Phase 4: Configure Frontend Environment
-
-**Create environment configuration:**
-```bash
-# Set up frontend environment variables
-cat > frontend/.env.local << EOF
-VITE_PARAMIFY_CORE_CANISTER_ID=$CORE_ID
-VITE_PARAMIFY_ORACLE_CANISTER_ID=$ORACLE_ID
-VITE_ICP_HOST=http://127.0.0.1:4943
-VITE_INTERNET_IDENTITY_URL=https://identity.ic0.app
-EOF
-```
-
-**Build and deploy frontend:**
-```bash
-cd frontend
-npm run build
-cd ..
-dfx deploy paramify_frontend
-```
-
-### Phase 5: Start Backend API Server
-
-**Start the bridge server:**
-```bash
-# In WSL
 cd backend
 npm start
 ```
-The backend API will run on `http://localhost:3001`
+The backend will run on `http://localhost:3001` and provide USGS flood data integration.
+
+### Step 4: Start Frontend Development
+```bash
+cd frontend
+npm run dev
+```
+The frontend will run on `http://localhost:5173` with hot reload for development.
 
 ## 🌐 Access Your dApp
 
 **Frontend Application:**
 ```
-http://127.0.0.1:4943/?canisterId=<FRONTEND_CANISTER_ID>
+http://localhost:5173
 ```
 
-**API Endpoints:**
+**Backend API Endpoints:**
 - Health Check: `http://localhost:3001/api/health`
 - Flood Data: `http://localhost:3001/api/flood-data`
 - Service Status: `http://localhost:3001/api/status`
@@ -147,19 +86,13 @@ http://127.0.0.1:4943/?canisterId=<FRONTEND_CANISTER_ID>
 
 ## 🧪 Testing Your dApp
 
-### Test ICP Canister Functions
+### Test Smart Contracts
 ```bash
-# Check flood threshold
-dfx canister call paramify_core getFloodThreshold
+# Run comprehensive test suite
+npx hardhat test
 
-# Check current flood level
-dfx canister call paramify_oracle getLatestFloodData
-
-# Test flood data update (calls USGS API)
-dfx canister call paramify_oracle manualUpdate
-
-# Purchase insurance policy
-dfx canister call paramify_core buyInsurance "(1000000000000000000:nat, 30:nat)"
+# Test specific contracts
+npx hardhat test test/Paramify.js
 ```
 
 ### Test Backend API
@@ -167,7 +100,7 @@ dfx canister call paramify_core buyInsurance "(1000000000000000000:nat, 30:nat)"
 # Health check
 curl http://localhost:3001/api/health
 
-# Get flood data
+# Get flood data  
 curl http://localhost:3001/api/flood-data
 
 # Get service status
@@ -177,81 +110,139 @@ curl http://localhost:3001/api/status
 curl -X POST http://localhost:3001/api/manual-update
 ```
 
+### Test Frontend
+1. Open `http://localhost:5173` in your browser
+2. Connect your MetaMask wallet
+3. Choose "Individual" or "Company" portal
+4. Test insurance purchase and monitoring features
+
 ## 🏛️ How It Works
 
-### Data Flow Architecture
+### Data Flow Architecture  
 ```
-🌐 USGS API → ICP Oracle → Core Canister → Backend API → Frontend
-                     ↓
-               Smart Contracts (Settlement)
+🌐 USGS API → Backend API → Frontend ↔ Smart Contracts (Ethereum)
+                    ↓                        ↓
+              ICP canister (data)        Settlement & Logic
 ```
 
 ### Key Features
 
-1. **Real Flood Data**: Oracle canister fetches live data from USGS Mississippi River gauge
-2. **Insurance Policies**: Users purchase coverage with automatic flood monitoring
-3. **Automated Payouts**: Policies trigger automatically when flood levels exceed threshold
-4. **Hybrid Settlement**: Combines ICP efficiency with Ethereum security
-5. **Beautiful UI**: Modern React dashboard with real-time flood monitoring
+1. **Real Flood Data**: Backend API fetches live data from USGS flood monitoring stations
+2. **Smart Contract Insurance**: Ethereum-based policies with automated claim processing  
+3. **Modern UI**: Beautiful React dashboard with real-time flood monitoring
+4. **Data Canister**: Durable storage of flood readings, activities, and simple policies
+5. **Development Ready**: Hot reload, proper error handling, and developer tools
 
 ### Security Architecture
-- **Frontend**: Cannot make direct external API calls (browser security)
-- **ICP Canisters**: Run in sandboxed environment, can make HTTP requests
-- **Backend API**: Provides clean interface between frontend and canisters
-- **Smart Contracts**: Handle final settlement on blockchain
+- **Smart Contracts**: Secure, tested Solidity contracts on Ethereum
+- **Backend API**: Clean separation between data sources and frontend
+- **ICP Data Canister**: Access-controlled writes, append-only patterns, upgrade-safe storage
+- **Data Integrity**: Real-time USGS data with error handling and validation
+
+## 📦 Paramify Data Canister (ICP)
+
+- **Name**: `paramify_data`
+- **Purpose**: Minimal, focused backend component for:
+  - **Flood readings storage** (timestamped level, location, source)
+  - **User activity tracking** (who did what and when)
+  - **Simple policy ledger** (create, update status, fetch by user)
+- **Why it’s useful**:
+  - Decouples data storage from the USGS integration logic
+  - Low-latency reads and writes, upgrade-safe stable storage
+  - Provides an audit trail and analytics (`getStats`) without changing your USGS integration
+
+### Public Interface (key methods)
+- `recordFloodData(level: float64, location: text, source: text) -> Result<(), text>`
+- `getFloodData(limit: opt nat) -> [record { timestamp; level; location; source }]`
+- `getLatestFloodLevel() -> opt float64`
+- `recordActivity(action: text, metadata: text) -> Result<(), text>`
+- `getUserActivities(user: principal, limit: opt nat) -> [record { ... }]`
+- `createPolicy(coverage: nat, premium: nat, durationDays: nat) -> Result<principal, text>`
+- `updatePolicyStatus(policyId: principal, newStatus: text) -> Result<(), text>`
+- `getPolicy(policyId: principal) -> opt PolicyData`
+- `getUserPolicies(user: principal) -> [PolicyData]`
+- `getStats() -> record { totalFloodRecords; totalActivities; totalPolicies; activePolicies }`
+
+### Example Commands
+```bash
+# Start a clean local replica
+wsl
+dfx stop || true
+dfx start --background --clean
+
+# Build and deploy
+cd /mnt/c/Users/danie/Paramify-6
+dfx deploy paramify_data
+
+# Record a flood datapoint (also bootstraps caller as admin)
+dfx canister call paramify_data recordFloodData '(12.5:float64, "Washington DC", "USGS")'
+
+# Read data and stats
+dfx canister call paramify_data getLatestFloodLevel
+dfx canister call paramify_data getFloodData '(opt 10)'
+dfx canister call paramify_data getStats
+
+# Activity and policies
+dfx identity get-principal
+dfx canister call paramify_data recordActivity '("view_dashboard", "initial load")'
+dfx canister call paramify_data createPolicy '(1000:nat, 100:nat, 30:nat)'
+dfx canister call paramify_data updatePolicyStatus '(<PASTE_PRINCIPAL>, "expired")'
+```
 
 ## 🔧 Troubleshooting
 
 ### Common Issues & Solutions
 
-**1. "Contract not found" Error**
-- **Problem**: Frontend trying to call smart contracts directly
-- **Solution**: Ensure frontend uses backend API, not direct contract calls
+**1. Backend API Connection Failed**
+- **Problem**: Frontend can't connect to backend on port 3001
+- **Solution**: Ensure backend is running with `npm start` in backend directory
 
-**2. "Network Error" on Frontend**
-- **Problem**: Frontend trying to call external APIs directly
-- **Solution**: This is expected! Frontend should use backend API instead
+**2. Smart Contract Deployment Fails**
+- **Problem**: Hardhat network configuration issues
+- **Solution**: Check hardhat.config.js and ensure Hardhat node is running
 
-**3. ICP Canister Communication Errors**
-- **Problem**: dfx commands failing or Candid parsing issues
-- **Solution**: Use backend API server for frontend communication
+**3. MetaMask Connection Issues**
+- **Problem**: Wallet won't connect or wrong network
+- **Solution**: Switch to localhost:8545 network or configure testnet properly
 
-**4. Hardhat Network Issues**
-- **Problem**: "passthrough" network not found
-- **Solution**: Check hardhat.config.js has correct network configuration
+**4. USGS Data Not Loading**
+- **Problem**: External API calls failing
+- **Solution**: Check backend logs and ensure internet connectivity
 
-**5. dfx Not Found**
-- **Problem**: dfx command not available
-- **Solution**: Run in WSL and ensure dfx is installed with install script
+**5. Canister Call Fails (IC0304 / no Wasm)**
+- **Solution**: `dfx start --background --clean && dfx deploy paramify_data`
 
 ### Useful Commands
 
 ```bash
-# Check ICP status
-dfx ping
+# Test smart contracts
+npx hardhat test
+npx hardhat run scripts/check-account-balance.js --network localhost
+
+# Check backend API
+curl http://localhost:3001/api/health
+cd backend && npm run dev  # Development mode with auto-restart
+
+# Frontend development
+cd frontend && npm run dev   # Development server
+cd frontend && npm run build # Production build
+
+# ICP canister
+wsl
 dfx canister status --all
-
-# Check Hardhat networks
-npx hardhat help
-npx hardhat run scripts/check-account-balance.js --network passthrough
-
-# Restart services
-dfx stop && dfx start --background --clean
-cd backend && npm start
+dfx canister call paramify_data getStats
 ```
 
-### Environment-Specific Notes
+### Development Notes
 
-**Windows + WSL:**
-- Run ICP commands in WSL
-- Run Hardhat commands in PowerShell
-- Backend API bridges the environments
+**Recommended Development Flow:**
+1. Start Hardhat node: `npx hardhat node`
+2. Deploy contracts: `npx hardhat run scripts/deploy.js --network localhost`
+3. Start backend: `cd backend && npm start`
+4. Start frontend: `cd frontend && npm run dev`
+5. Use IC canister for storage and activity: `dfx deploy paramify_data`
 
-**Ubuntu/Linux:**
-- All commands can run in same terminal
-- Better dfx compatibility
-
-## 🏛️ Smart Contract Functions
+## 🏛️ Smart Contract Functions (Ethereum)
 
 ### Paramify Contract
 - `buyInsurance(uint256 coverage)`: Purchase insurance policy
@@ -259,11 +250,19 @@ cd backend && npm start
 - `getLatestPrice()`: Get current flood level from oracle
 - `setInsuranceAmount(uint256)`: Admin function to set coverage amounts
 
-### ICP Canister Functions
-- `buyInsurance(coverage: Nat, duration: Nat)`: Purchase policy
-- `claimPayout(policyId: Principal)`: Claim payout
-- `getFloodThreshold()`: Get current flood threshold
-- `manualUpdate()`: Fetch fresh flood data from USGS
+## 🧰 ICP Canister Functions
+
+### paramify_data
+- `recordFloodData(level: float64, location: text, source: text)`
+- `getFloodData(limit: opt nat)`
+- `getLatestFloodLevel()`
+- `recordActivity(action: text, metadata: text)`
+- `getUserActivities(user: principal, limit: opt nat)`
+- `createPolicy(coverage: nat, premium: nat, durationDays: nat)`
+- `updatePolicyStatus(policyId: principal, newStatus: text)`
+- `getPolicy(policyId: principal)`
+- `getUserPolicies(user: principal)`
+- `getStats()`
 
 ## 🚀 Advanced Configuration
 
@@ -271,10 +270,9 @@ cd backend && npm start
 
 **Frontend (.env.local):**
 ```env
-VITE_PARAMIFY_CORE_CANISTER_ID=<core_canister_id>
-VITE_PARAMIFY_ORACLE_CANISTER_ID=<oracle_canister_id>
 VITE_ICP_HOST=http://127.0.0.1:4943
-VITE_INTERNET_IDENTITY_URL=https://identity.ic0.app
+# Optionally, expose the canister id if the frontend will call it directly
+# VITE_PARAMIFY_DATA_CANISTER_ID=<paramify_data_canister_id>
 ```
 
 **Backend (.env):**
@@ -301,9 +299,9 @@ networks: {
 
 ## 📈 Performance & Scaling
 
-- **ICP Canisters**: Handle high-frequency operations with low latency
+- **ICP Canister**: Handles high-frequency reads/writes with low latency
 - **Ethereum**: Provides settlement security and finality
-- **Oracle**: Updates flood data every 5 minutes (configurable)
+- **Backend**: Resilient to transient USGS/API failures with retries
 - **Frontend**: Optimized React with Vite for fast loading
 
 ## 🤝 Contributing
@@ -316,19 +314,19 @@ networks: {
 
 ## 📄 License
 
-[Add your license information]
+MIT
 
 ---
 
 ## 🎯 What Makes This Special
 
 This dApp demonstrates a **production-ready hybrid architecture** that combines:
-- **ICP's speed and web integration** for user-facing operations
+- **ICP's speed and web integration** for data + activity storage
 - **Ethereum's security** for financial settlement
-- **Real-world data integration** with live flood monitoring
+- **Real-world data integration** with live USGS monitoring
 - **Modern development practices** with automated deployment
 
-**Result**: A fully functional flood insurance platform with real data, working policies, and beautiful UI! 🌊
+**Result**: A functional flood insurance platform with real data, a focused data canister, and a beautiful UI! 🌊
 
 ## Development
 
@@ -348,40 +346,12 @@ cd frontend
 npm run dev
 ```
 
-## Canister Functions
-
-### paramify_core
-- `buyInsurance(coverage: Nat, duration: Nat)`: Purchase insurance policy
-- `claimPayout(policyId: Principal)`: Claim payout if flood threshold met
-- `addAdmin(newAdmin: Principal)`: Add new admin
-- `setFloodThreshold(threshold: Nat)`: Set flood level threshold
-- `getPolicy(policyId: Principal)`: Get policy details
-
-### paramify_oracle
-- `setCoreCanisterId(id: Text)`: Set core canister ID for integration
-- `startUpdates()`: Start automatic flood level updates
-- `manualUpdate()`: Trigger manual flood level update
-- `getLatestFloodData()`: Get current flood level
-
 ## Configuration
 
 The `dfx.json` file configures:
-- Canister types and dependencies
+- Canister types and entry points
 - Build commands for frontend
 - Network settings
-
-## Migration from Ethereum
-
-This project demonstrates migrating from Ethereum/Hardhat to IC while preserving:
-- React frontend architecture
-- Business logic (moved to Motoko canisters)
-- User experience and UI components
-
-The IC provides:
-- Lower transaction costs
-- Faster finality
-- Native integration with web technologies
-- Scalable backend infrastructure
 
 ## Troubleshooting
 
@@ -393,7 +363,7 @@ The IC provides:
 ### Useful Commands
 ```bash
 dfx canister status --all          # Check canister status
-dfx canister info <CANISTER_NAME>  # Get canister details
+dfx canister info paramify_data    # Get canister details
 dfx stop                           # Stop local replica
 ```
 
@@ -405,6 +375,4 @@ dfx stop                           # Stop local replica
 4. Test thoroughly
 5. Submit a pull request
 
-## License
 
-[Add your license here]

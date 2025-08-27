@@ -2,23 +2,9 @@
   "version": 1,
   "dfx": "0.18.0",
   "canisters": {
-    "paramify_core": {
+    "paramify_data": {
       "type": "motoko",
-      "main": "src/paramify_core/main.mo"
-    },
-    "paramify_oracle": {
-      "type": "motoko",
-      "main": "src/paramify_oracle/main.mo"
-    },
-    "paramify_frontend": {
-      "type": "assets",
-      "source": [
-        "frontend/dist"
-      ],
-      "build": [
-        "npm --prefix frontend ci",
-        "npm --prefix frontend run build"
-      ]
+      "main": "src/paramify_data/main.mo"
     }
   },
   "defaults": {
