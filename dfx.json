@@ -1,10 +1,76 @@
 {
-"version": 1,
-"dfx": "0.18.0",
-"canisters": {
-"main": {
-"type": "motoko",
-"main": "src/main.mo" 
-}
-}
+  "version": 1,
+  "dfx": "0.16.1",
+  "canisters": {
+    "insurance": {
+      "type": "motoko",
+      "main": "src/canisters/insurance/main.mo",
+      "declarations": {
+        "output": "src/declarations/insurance",
+        "bindings": ["js", "ts", "did"],
+        "node_compatibility": true
+      }
+    },
+    "oracle": {
+      "type": "rust",
+      "package": "oracle",
+      "candid": "src/canisters/oracle/oracle.did",
+      "declarations": {
+        "output": "src/declarations/oracle",
+        "bindings": ["js", "ts", "did"],
+        "node_compatibility": true
+      },
+      "build": {
+        "commands": [
+          "cargo build --manifest-path=src/canisters/oracle/Cargo.toml --target wasm32-unknown-unknown --release",
+          "ic-wasm target/wasm32-unknown-unknown/release/oracle.wasm -o target/wasm32-unknown-unknown/release/oracle_optimized.wasm shrink"
+        ],
+        "output": "target/wasm32-unknown-unknown/release/oracle_optimized.wasm"
+      }
+    },
+    "payments": {
+      "type": "motoko",
+      "main": "src/canisters/payments/main.mo",
+      "declarations": {
+        "output": "src/declarations/payments",
+        "bindings": ["js", "ts", "did"],
+        "node_compatibility": true
+      }
+    },
+    "icrc1_ledger": {
+      "type": "custom",
+      "candid": "https://raw.githubusercontent.com/dfinity/ic/master/rs/rosetta-api/icrc1/ledger/ledger.did",
+      "wasm": "https://download.dfinity.systems/ic/release-2024-01-25_23-01/canisters/ic-icrc1-ledger.wasm.gz",
+      "init_arg": "(variant { Init = record { token_symbol = \"ckETH\"; token_name = \"Chain Key Ethereum\"; minting_account = record { owner = principal \"${MINTING_PRINCIPAL}\" }; transfer_fee = 10_000; metadata = vec {}; initial_balances = vec { record { record { owner = principal \"${DEPLOYER_PRINCIPAL}\"; }; 1_000_000_000_000; }; }; archive_options = record { num_blocks_to_archive = 10_000; trigger_threshold = 20_000; controller_id = principal \"${DEPLOYER_PRINCIPAL}\"; }; feature_flags = opt record { icrc2 = true; }; decimals = opt 8; }})"
+    },
+    "frontend": {
+      "type": "assets",
+      "source": ["frontend/dist"],
+      "declarations": {
+        "output": "src/declarations/frontend",
+        "bindings": ["js", "ts", "did"],
+        "node_compatibility": true
+      }
+    }
+  },
+  "defaults": {
+    "build": {
+      "packtool": "",
+      "args": ""
+    }
+  },
+  "output_env_file": ".env",
+  "networks": {
+    "local": {
+      "bind": "127.0.0.1:4943",
+      "type": "ephemeral",
+      "replica": {
+        "subnet_type": "system"
+      }
+    },
+    "ic": {
+      "providers": ["https://ic0.app"],
+      "type": "persistent"
+    }
+  }
 }
