@@ -1,0 +1,16 @@
+{
+  "canisters": {
+    "flood_data_storage": {
+      "main": "src/flood_data_storage/main.mo",
+      "type": "motoko"
+    }
+  },
+  "defaults": {
+    "build": {
+      "args": "",
+      "packtool": ""
+    }
+  },
+  "output_env_file": ".env",
+  "version": 1
+}

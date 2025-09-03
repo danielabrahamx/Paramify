@@ -19,13 +19,6 @@
         "output": "src/declarations/oracle",
         "bindings": ["js", "ts", "did"],
         "node_compatibility": true
-      },
-      "build": {
-        "commands": [
-          "cargo build --manifest-path=src/canisters/oracle/Cargo.toml --target wasm32-unknown-unknown --release",
-          "ic-wasm target/wasm32-unknown-unknown/release/oracle.wasm -o target/wasm32-unknown-unknown/release/oracle_optimized.wasm shrink"
-        ],
-        "output": "target/wasm32-unknown-unknown/release/oracle_optimized.wasm"
       }
     },
     "payments": {
