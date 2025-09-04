@@ -54,7 +54,7 @@ async function testBasicConnectivity() {
     const isFloodCondition = Number(floodLevel) >= Number(threshold);
     console.log(`🚨 Flood condition: ${isFloodCondition ? 'YES - PAYOUT ELIGIBLE' : 'NO - Normal conditions'}`);
     
-    console.log('\n🎉 COMPLETE SUCCESS! ��');
+    console.log('\n🎉 COMPLETE SUCCESS! 🎉');
     console.log('✅ Your canister is running and responding to queries');
     console.log('✅ Backend can successfully communicate with ICP canister');
     
