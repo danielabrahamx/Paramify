@@ -45,3 +45,30 @@ typechain-types/
 *.tgz
 *.tar.gz
 .cache/
+
+# ICP/DFX specific
+.dfx/
+.vessel/
+canister_ids.json
+.azle/
+
+# Rust/Cargo
+target/
+Cargo.lock
+**/*.rs.bk
+
+# Generated declarations
+src/declarations/
+frontend/src/declarations/
+
+# Security - Never commit these
+*.pem
+*.pem.enc
+*.key
+*.key.enc
+identity.json
+seed.txt
+
+# Docker volumes
+dfx-data/
+cargo-cache/

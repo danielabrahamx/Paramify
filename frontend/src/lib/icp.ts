@@ -1,9 +1,6 @@
 import { AuthClient } from '@dfinity/auth-client';
 import { Principal } from '@dfinity/principal';
-
-const IDENTITY_PROVIDER = process.env.NODE_ENV === 'development'
-  ? 'http://127.0.0.1:4943?canisterId=rdmx6-jaaaa-aaaaa-aaadq-cai'
-  : 'https://identity.ic0.app';
+import { IDENTITY_PROVIDER, isAdminPrincipal as checkAdmin } from './config';
 
 let authClient: AuthClient | null = null;
 
@@ -56,6 +53,5 @@ export function formatPrincipal(principal: Principal): string {
 }
 
 export function isAdminPrincipal(principal: Principal): boolean {
-  const adminPrincipal = 'qt2t5-udd6f-umvix-3lpif-36zrq-2m66p-nyu74-d4xjq-ixiag-luvur-bqe';
-  return principal.toText() === adminPrincipal;
+  return checkAdmin(principal.toText());
 }
