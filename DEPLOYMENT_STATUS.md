@@ -15,7 +15,7 @@
 - **Cycles**: Sufficient for testing and development
 
 ### 2. Insurance Canister (Core Business Logic)
-- **Canister ID**: `bkyz2-fmaaa-aaaaa-qaaaq-cai`
+- **Canister ID**: `uxrrr-q7777-77774-qaaaq-cai`
 - **Language**: Rust with ic-cdk
 - **Status**: ✅ Deployed and fully functional
 - **Capabilities**:
@@ -38,7 +38,7 @@
 ### 4. USGS Data Integration
 - **Source**: USGS Site 01646500 (Potomac River at Washington, DC)
 - **Parameter**: 00065 (Gage height, feet)
-- **Current Level**: 2.74 feet
+- **Current Level**: 2.73 feet
 - **Update Frequency**: 5 minutes
 - **Status**: ✅ Live data streaming
 
@@ -52,8 +52,8 @@
 
 ```
 🌊 Flood Monitoring:
-   Current Level: 2.74 feet
-   Threshold: 12.0 feet
+   Current Level: 2.73 feet
+   Threshold: 10.0 feet
    Status: Normal conditions
    Last Update: Live (every 5 minutes)
 
@@ -175,7 +175,7 @@ FLOOD_THRESHOLD=10.0
 ### Local Development
 - **Backend API**: http://localhost:3001
 - **ICP Replica**: http://127.0.0.1:4943
-- **Canister ID**: bkyz2-fmaaa-aaaaa-qaaaq-cai
+- **Canister ID**: uxrrr-q7777-77774-qaaaq-cai
 
 ### Command Reference
 ```bash

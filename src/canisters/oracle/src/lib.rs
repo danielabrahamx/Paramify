@@ -1,7 +1,7 @@
 use candid::{CandidType, Deserialize, Principal};
-use ic_cdk::{api, call, query, update, init, pre_upgrade, post_upgrade};
+use ic_cdk::{api, query, update, init, pre_upgrade, post_upgrade};
 use ic_cdk::api::management_canister::http_request::{
-    http_request, CanisterHttpRequestArgument, HttpHeader, HttpMethod, HttpResponse, TransformArgs,
+    http_request, CanisterHttpRequestArgument, HttpMethod, HttpResponse, TransformArgs,
     TransformContext, TransformFunc,
 };
 use ic_cdk_timers::set_timer_interval;
@@ -9,6 +9,9 @@ use serde::{Deserialize as SerdeDeserialize, Serialize};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::time::Duration;
+
+#[cfg(test)]
+mod tests;
 
 // ============================================
 // Type Definitions
@@ -121,7 +124,7 @@ thread_local! {
     static TIMER_ID: RefCell<Option<ic_cdk_timers::TimerId>> = RefCell::new(None);
 }
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Default, Clone, Serialize, Deserialize)]
 struct OracleStats {
     total_updates: u64,
     last_update_time: Option<u64>,
@@ -399,7 +402,7 @@ fn get_status() -> OracleStatus {
     OracleStatus {
         total_updates: stats.total_updates,
         last_update_time: stats.last_update_time,
-        last_error: stats.last_error,
+        last_error: stats.last_error.clone(),
         cached_locations: locations,
         is_paused: config.is_paused,
         update_interval_seconds: config.update_interval_seconds,
@@ -425,7 +428,9 @@ async fn manual_update(location: String) -> Result<FloodData, String> {
 
 #[update]
 async fn batch_update(locations: Vec<String>) -> Vec<(String, Result<FloodData, String>)> {
-    require_authorized()?;
+    if let Err(e) = require_authorized() {
+        return locations.into_iter().map(|loc| (loc, Err(e.clone()))).collect();
+    }
     
     let mut results = vec![];
     

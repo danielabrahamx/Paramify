@@ -35,10 +35,10 @@ service : {
   "get_admin": () -> (principal) query;
   
   // Oracle Functions
-  "set_flood_level": (int64) -> (variant { Ok; Err: text });
-  "get_flood_level": () -> (int64) query;
-  "set_flood_threshold": (nat64) -> (variant { Ok; Err: text });
-  "get_flood_threshold": () -> (nat64) query;
+  "set_flood_level": (float64) -> (variant { Ok; Err: text });
+  "get_flood_level": () -> (float64) query;
+  "set_flood_threshold": (float64) -> (variant { Ok; Err: text });
+  "get_flood_threshold": () -> (float64) query;
   "add_oracle_updater": (principal) -> (variant { Ok; Err: text });
   "remove_oracle_updater": (principal) -> (variant { Ok; Err: text });
   "get_oracle_updaters": () -> (variant { Ok: vec principal; Err: text }) query;
